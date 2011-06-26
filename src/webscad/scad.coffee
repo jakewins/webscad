@@ -1,0 +1,25 @@
+{Lexer} = require "./lexer"
+{parser} = require "./parser"
+
+lexer = new Lexer
+
+# Wrapper to make generic lexer work with Jison parser
+parser.lexer = 
+  lex: ->
+    [tag, @yytext, @yylineno] = @tokens[@pos++] or ['']
+    tag
+  setInput: (@tokens) ->
+    @pos = 0
+  upcomingInput: ->
+    ""
+    
+# Parse a string of SCAD code or an array of lexed tokens, and
+# return the AST. You can then compile it by calling `.compile()` on the root,
+# or traverse it by using `.traverse()` with a callback.
+exports.parse = (source, options) ->
+  if typeof source is 'string'
+    parser.parse lexer.tokenize source, options
+  else
+    parser.parse source
+    
+parser.yy = require './nodes'
