@@ -19,59 +19,7 @@ NEGATE  = -> @negated = not @negated; this
 #### Base
 
 # The **Base** is the abstract base class for all nodes in the syntax tree.
-# Each subclass implements the `compileNode` method, which performs the
-# code generation for that node. To compile a node to JavaScript,
-# call `compile` on it, which wraps `compileNode` in some generic extra smarts,
-# to know when the generated code needs to be wrapped up in a closure.
-# An options hash is passed and cloned throughout, containing information about
-# the environment from higher in the tree (such as if a returned value is
-# being requested by the surrounding function), information about the current
-# scope, and indentation level.
 exports.Base = class Base
-
-  # Common logic for determining whether to wrap this node in a closure before
-  # compiling it, or to compile directly. We need to wrap if this node is a
-  # *statement*, and it's not a *pureStatement*, and we're not at
-  # the top level of a block (which would be unnecessary), and we haven't
-  # already been asked to return the result (because statements know how to
-  # return results).
-  compile: (o, lvl) ->
-    o        = extend {}, o
-    o.level  = lvl if lvl
-    node     = @unfoldSoak(o) or this
-    node.tab = o.indent
-    if o.level is LEVEL_TOP or not node.isStatement(o)
-      node.compileNode o
-    else
-      node.compileClosure o
-
-  # Statements converted into expressions via closure-wrapping share a scope
-  # object with their parent closure, to preserve the expected lexical scope.
-  compileClosure: (o) ->
-    if @jumps() or this instanceof Throw
-      throw SyntaxError 'cannot use a pure statement in an expression.'
-    o.sharedScope = yes
-    Closure.wrap(this).compileNode o
-
-  # If the code generation wishes to use the result of a complex expression
-  # in multiple places, ensure that the expression is only ever evaluated once,
-  # by assigning it to a temporary variable. Pass a level to precompile.
-  cache: (o, level, reused) ->
-    unless @isComplex()
-      ref = if level then @compile o, level else this
-      [ref, ref]
-    else
-      ref = new Literal reused or o.scope.freeVariable 'ref'
-      sub = new Assign ref, this
-      if level then [sub.compile(o, level), ref.value] else [sub, ref]
-
-  # Compile to a source/variable pair suitable for looping.
-  compileLoopReference: (o, name) ->
-    src = tmp = @compile o, LEVEL_LIST
-    unless -Infinity < +src < Infinity or IDENTIFIER.test(src) and o.scope.check(src, yes)
-      src = "#{ tmp = o.scope.freeVariable name } = #{src}"
-    [src, tmp]
-
   # Construct a node that returns the current node's result.
   # Note that this is overridden for smarter behavior for
   # many statement nodes (e.g. If, For)...
@@ -183,67 +131,7 @@ exports.Block = class Block extends Base
   jumps: (o) ->
     for st in @statements
       return st if st.jumps o
-
-  # An **Block** is the only node that can serve as the root.
-  compile: (o = {}, level) ->
-    if o.scope then super o, level else @compileRoot o
-
-  # Compile all expressions within the **Block** body. If we need to
-  # return the result, and it's an expression, simply return it. If it's a
-  # statement, ask the statement to do so.
-  compileNode: (o) ->
-    @tab  = o.indent
-    top   = o.level is LEVEL_TOP
-    codes = []
-    for node in @expressions
-      node = node.unwrapAll()
-      node = (node.unfoldSoak(o) or node)
-      if top
-        node.front = true
-        code = node.compile o
-        codes.push if node.isStatement o then code else @tab + code + ';'
-      else
-        codes.push node.compile o, LEVEL_LIST
-    return codes.join '\n' if top
-    code = codes.join(', ') or 'void 0'
-    if codes.length > 1 and o.level >= LEVEL_LIST then "(#{code})" else code
-
-  # If we happen to be the top-level **Block**, wrap everything in
-  # a safety closure, unless requested not to.
-  # It would be better not to generate them in the first place, but for now,
-  # clean up obvious double-parentheses.
-  compileRoot: (o) ->
-    o.indent = @tab = if o.bare then '' else TAB
-    o.scope  = new Scope null, this, null
-    o.level  = LEVEL_TOP
-    code     = @compileWithDeclarations o
-    if o.bare then code else "(function() {\n#{code}\n}).call(this);\n"
-
-  # Compile the expressions body for the contents of a function, with
-  # declarations of all inner variables pushed up to the top.
-  compileWithDeclarations: (o) ->
-    code = post = ''
-    for exp, i in @expressions
-      exp = exp.unwrap()
-      break unless exp instanceof Comment or exp instanceof Literal
-    o = merge(o, level: LEVEL_TOP)
-    if i
-      rest = @expressions.splice i, @expressions.length
-      code = @compileNode(o)
-      @expressions = rest
-    post = @compileNode o
-    {scope} = o
-    if scope.expressions is this
-      declars = o.scope.hasDeclarations()
-      assigns = scope.hasAssignments
-      if (declars or assigns) and i
-        code += '\n'
-      if declars
-        code += "#{@tab}var #{ scope.declaredVariables().join(', ') };\n"
-      if assigns
-        code += "#{@tab}var #{ multident scope.assignedVariables().join(', '), @tab };\n"
-    code + post
-
+      
   # Wrap up the given nodes as an **Block**, unless it already happens
   # to be one.
   @wrap: (nodes) ->
@@ -276,15 +164,6 @@ exports.Literal = class Literal extends Base
     return no unless @isStatement()
     if not (o and (o.loop or o.block and (@value isnt 'continue'))) then this else no
 
-  compileNode: (o) ->
-    code = if @isUndefined
-      if o.level >= LEVEL_ACCESS then '(void 0)' else 'void 0'
-    else if @value.reserved
-      "\"#{@value}\""
-    else
-      @value
-    if @isStatement() then "#{@tab}#{code};" else code
-
   toString: ->
     ' "' + @value + '"'
 
@@ -301,13 +180,6 @@ exports.Return = class Return extends Base
   isStatement:     YES
   makeReturn:      THIS
   jumps:           THIS
-
-  compile: (o, level) ->
-    expr = @expression?.makeReturn()
-    if expr and expr not instanceof Return then expr.compile o, level else super o, level
-
-  compileNode: (o) ->
-    @tab + "return#{ if @expression then ' ' + @expression.compile(o, LEVEL_PAREN) else '' };"
 
 #### Value
 
@@ -360,55 +232,6 @@ exports.Value = class Value extends Base
   unwrap: ->
     if @properties.length then this else @base
 
-  # A reference has base part (`this` value) and name part.
-  # We cache them separately for compiling complex expressions.
-  # `a()[b()] ?= c` -> `(_base = a())[_name = b()] ? _base[_name] = c`
-  cacheReference: (o) ->
-    name = last @properties
-    if @properties.length < 2 and not @base.isComplex() and not name?.isComplex()
-      return [this, this]  # `a` `a.b`
-    base = new Value @base, @properties.slice 0, -1
-    if base.isComplex()  # `a().b`
-      bref = new Literal o.scope.freeVariable 'base'
-      base = new Value new Parens new Assign bref, base
-    return [base, bref] unless name  # `a()`
-    if name.isComplex()  # `a[b()]`
-      nref = new Literal o.scope.freeVariable 'name'
-      name = new Index new Assign nref, name.index
-      nref = new Index nref
-    [base.push(name), new Value(bref or base.base, [nref or name])]
-
-  # We compile a value to JavaScript by compiling and joining each property.
-  # Things get much more interesting if the chain of properties has *soak*
-  # operators `?.` interspersed. Then we have to take care not to accidentally
-  # evaluate anything twice when building the soak chain.
-  compileNode: (o) ->
-    @base.front = @front
-    props = @properties
-    code  = @base.compile o, if props.length then LEVEL_ACCESS else null
-    code  = "#{code}." if (@base instanceof Parens or props.length) and SIMPLENUM.test code
-    code += prop.compile o for prop in props
-    code
-
-  # Unfold a soak into an `If`: `a?.b` -> `a.b if a?`
-  unfoldSoak: (o) ->
-    return @unfoldedSoak if @unfoldedSoak?
-    result = do =>
-      if ifn = @base.unfoldSoak o
-        Array::push.apply ifn.body.properties, @properties
-        return ifn
-      for prop, i in @properties when prop.soak
-        prop.soak = off
-        fst = new Value @base, @properties.slice 0, i
-        snd = new Value @base, @properties.slice i
-        if fst.isComplex()
-          ref = new Literal o.scope.freeVariable 'ref'
-          fst = new Parens new Assign ref, fst
-          snd.base = ref
-        return new If new Existence(fst), snd, soak: on
-      null
-    @unfoldedSoak = result or no
-
 exports.Identifier = class Identifier extends Base
   constructor: (@name) ->
 
@@ -417,9 +240,6 @@ exports.Identifier = class Identifier extends Base
 
   assigns: (name) ->
     name is @name
-
-  compileNode: (o) ->
-    @name
   
   toString: (idt = '', name = @constructor.name) ->
     super(idt,name) + ' "' + @name + '"'
@@ -433,13 +253,7 @@ exports.BaseValue = class BaseValue extends Base
   assigns: (name) ->
     name is @value
 
-  compileNode: (o) ->
-    @value
-
 exports.UndefinedValue = class UndefinedValue extends BaseValue
-
-  compileNode: (o) ->
-    'undef'
 
 exports.NumberValue = class NumberValue extends BaseValue
 
@@ -470,16 +284,6 @@ exports.VectorValue = class VectorValue extends BaseValue
 
   children: ['objects']
 
-  compileNode: (o) ->
-    return '[]' unless @objects.length
-    o.indent += TAB
-    objs = @objects
-    code = (obj.compile o, LEVEL_LIST for obj in objs).join ', '
-    if code.indexOf('\n') >= 0
-      "[\n#{o.indent}#{code}\n#{@tab}]"
-    else
-      "[#{code}]"
-
   assigns: (name) ->
     for obj in @objects when obj.assigns name then return yes
     no
@@ -489,10 +293,6 @@ exports.RangeValue = class RangeValue extends BaseValue
   constructor: (@from, @step, @to) ->
 
   children: ['from','step','to']
-
-  compileNode: (o) ->
-    code = (obj.compile o, LEVEL_LIST for obj in [@from,@step,@to]).join ':'
-    return "[#{code}]"
 
   assigns: (name) ->
     for obj in [@from,@step,@to] when obj.assigns name then return yes
@@ -507,11 +307,6 @@ exports.Comment = class Comment extends Base
 
   isStatement:     YES
   makeReturn:      THIS
-  
-  compileNode: (o, level) ->
-    code = '/*' + multident(@comment, @tab) + '*/'
-    code = o.indent + code if (level or o.level) is LEVEL_TOP
-    code
     
   toString: (idt = '', name = @constructor.name) ->
     '\n' + idt + name + ' "' + @comment + '"'
@@ -525,113 +320,6 @@ exports.FunctionCall = class FunctionCall extends Base
     
   children: ['variable', 'args']
 
-  # Grab the reference to the superclass's implementation of the current
-  # method.
-  superReference: (o) ->
-    {method} = o.scope
-    throw SyntaxError 'cannot call super outside of a function.' unless method
-    {name} = method
-    throw SyntaxError 'cannot call super on an anonymous function.' unless name?
-    if method.klass
-      (new Value (new Literal method.klass), [new Access(new Literal "__super__"), new Access new Literal name]).compile o
-    else
-      "#{name}.__super__.constructor"
-
-  # Soaked chained invocations unfold into if/else ternary structures.
-  unfoldSoak: (o) ->
-    if @soak
-      if @variable
-        return ifn if ifn = unfoldSoak o, this, 'variable'
-        [left, rite] = new Value(@variable).cacheReference o
-      else
-        left = new Literal @superReference o
-        rite = new Value left
-      rite = new Call rite, @args
-      rite.isNew = @isNew
-      left = new Literal "typeof #{ left.compile o } === \"function\""
-      return new If left, new Value(rite), soak: yes
-    call = this
-    list = []
-    loop
-      if call.variable instanceof Call
-        list.push call
-        call = call.variable
-        continue
-      break unless call.variable instanceof Value
-      list.push call
-      break unless (call = call.variable.base) instanceof Call
-    for call in list.reverse()
-      if ifn
-        if call.variable instanceof Call
-          call.variable = ifn
-        else
-          call.variable.base = ifn
-      ifn = unfoldSoak o, call, 'variable'
-    ifn
-
-  # Walk through the objects in the arguments, moving over simple values.
-  # This allows syntax like `call a: b, c` into `call({a: b}, c);`
-  filterImplicitObjects: (list) ->
-    nodes = []
-    for node in list
-      unless node.isObject?() and node.base.generated
-        nodes.push node
-        continue
-      obj = null
-      for prop in node.base.properties
-        if prop instanceof Assign
-          nodes.push obj = new Obj properties = [], true if not obj
-          properties.push prop
-        else
-          nodes.push prop
-          obj = null
-    nodes
-
-  # Compile a vanilla function call.
-  compileNode: (o) ->
-    @variable?.front = @front
-    if code = Splat.compileSplattedArray o, @args, true
-      return @compileSplat o, code
-    args = @filterImplicitObjects @args
-    args = (arg.compile o, LEVEL_LIST for arg in args).join ', '
-    if @isSuper
-      @superReference(o) + ".call(this#{ args and ', ' + args })"
-    else
-      (if @isNew then 'new ' else '') + @variable.compile(o, LEVEL_ACCESS) + "(#{args})"
-
-  # `super()` is converted into a call against the superclass's implementation
-  # of the current function.
-  compileSuper: (args, o) ->
-    "#{@superReference(o)}.call(this#{ if args.length then ', ' else '' }#{args})"
-
-  # If you call a function with a splat, it's converted into a JavaScript
-  # `.apply()` call to allow an array of arguments to be passed.
-  # If it's a constructor, then things get real tricky. We have to inject an
-  # inner constructor in order to be able to pass the varargs.
-  compileSplat: (o, splatArgs) ->
-    return "#{ @superReference o }.apply(this, #{splatArgs})" if @isSuper
-    if @isNew
-      idt = @tab + TAB
-      return """
-        (function(func, args, ctor) {
-        #{idt}ctor.prototype = func.prototype;
-        #{idt}var child = new ctor, result = func.apply(child, args);
-        #{idt}return typeof result === "object" ? result : child;
-        #{@tab}})(#{ @variable.compile o, LEVEL_LIST }, #{splatArgs}, function() {})
-      """
-    base = new Value @variable
-    if (name = base.properties.pop()) and base.isComplex()
-      ref = o.scope.freeVariable 'ref'
-      fun = "(#{ref} = #{ base.compile o, LEVEL_LIST })#{ name.compile o }"
-    else
-      fun = base.compile o, LEVEL_ACCESS
-      fun = "(#{fun})" if SIMPLENUM.test fun
-      if name
-        ref = fun
-        fun += name.compile o
-      else
-        ref = 'null'
-    "#{fun}.apply(#{ref}, #{splatArgs})"
 
 # Module invocation, this differs from function
 # invocation in that it is a statement, and can have
@@ -649,10 +337,6 @@ exports.MemberAccess = class MemberAccess extends Base
 
   children: ['objectExpression','memberName']
 
-  compile: (o) ->
-    name = @name.compile o
-    @proto + if IDENTIFIER.test name then ".#{name}" else "[#{name}]"
-
   isComplex: NO
 
 #### IndexAccess
@@ -662,9 +346,6 @@ exports.IndexAccess = class IndexAccess extends Base
   constructor: (@vectorExpression, @indexExpression) ->
 
   children: ['vectorExpression','indexExpression']
-
-  compile: (o) ->
-    (if @proto then '.prototype' else '') + "[#{ @index.compile o, LEVEL_PAREN }]"
 
   isComplex: ->
     @index.isComplex()
@@ -682,74 +363,6 @@ exports.Range = class Range extends Base
     @exclusive = tag is 'exclusive'
     @equals = if @exclusive then '' else '='
 
-  # Compiles the range's source variables -- where it starts and where it ends.
-  # But only if they need to be cached to avoid double evaluation.
-  compileVariables: (o) ->
-    o = merge o, top: true
-    [@fromC, @fromVar]  =  @from.cache o, LEVEL_LIST
-    [@toC, @toVar]      =  @to.cache o, LEVEL_LIST
-    [@step, @stepVar]   =  step.cache o, LEVEL_LIST if step = del o, 'step'
-    [@fromNum, @toNum]  = [@fromVar.match(SIMPLENUM), @toVar.match(SIMPLENUM)]
-    @stepNum            = @stepVar.match(SIMPLENUM) if @stepVar
-
-  # When compiled normally, the range returns the contents of the *for loop*
-  # needed to iterate over the values in the range. Used by comprehensions.
-  compileNode: (o) ->
-    @compileVariables o unless @fromVar
-    return @compileArray(o) unless o.index
-
-    # Set up endpoints.
-    known    = @fromNum and @toNum
-    idx      = del o, 'index'
-    varPart  = "#{idx} = #{@fromC}"
-    varPart += ", #{@toC}" if @toC isnt @toVar
-    varPart += ", #{@step}" if @step isnt @stepVar
-    [lt, gt] = ["#{idx} <#{@equals}", "#{idx} >#{@equals}"]
-
-    # Generate the condition.
-    condPart = if @stepNum
-      condPart = if +@stepNum > 0 then "#{lt} #{@toVar}" else "#{gt} #{@toVar}"
-    else if known
-      [from, to] = [+@fromNum, +@toNum]
-      condPart   = if from <= to then "#{lt} #{to}" else "#{gt} #{to}"
-    else
-      cond     = "#{@fromVar} <= #{@toVar}"
-      condPart = "#{cond} ? #{lt} #{@toVar} : #{gt} #{@toVar}"
-
-    # Generate the step.
-    stepPart = if @stepVar
-      "#{idx} += #{@stepVar}"
-    else if known
-      if from <= to then "#{idx}++" else "#{idx}--"
-    else
-      "#{cond} ? #{idx}++ : #{idx}--"
-
-    # The final loop body.
-    "#{varPart}; #{condPart}; #{stepPart}"
-
-
-  # When used as a value, expand the range into the equivalent array.
-  compileArray: (o) ->
-    if @fromNum and @toNum and Math.abs(@fromNum - @toNum) <= 20
-      range = [+@fromNum..+@toNum]
-      range.pop() if @exclusive
-      return "[#{ range.join(', ') }]"
-    idt    = @tab + TAB
-    i      = o.scope.freeVariable 'i'
-    result = o.scope.freeVariable 'results'
-    pre    = "\n#{idt}#{result} = [];"
-    if @fromNum and @toNum
-      o.index = i
-      body    = @compileNode o
-    else
-      vars    = "#{i} = #{@fromC}" + if @toC isnt @toVar then ", #{@toC}" else ''
-      cond    = "#{@fromVar} <= #{@toVar}"
-      body    = "var #{vars}; #{cond} ? #{i} <#{@equals} #{@toVar} : #{i} >#{@equals} #{@toVar}; #{cond} ? #{i}++ : #{i}--"
-    post   = "{ #{result}.push(#{i}); }\n#{idt}return #{result};\n#{o.indent}"
-    hasArgs = (node) -> node?.contains (n) -> n instanceof Literal and n.value is 'arguments' and not n.asKey
-    args   = ', arguments' if hasArgs(@from) or hasArgs(@to)
-    "(function() {#{pre}\n#{idt}for (#{body})#{post}}).apply(this#{args ? ''})"
-
 #### Module
 
 exports.Module = class Module extends Base
@@ -758,93 +371,6 @@ exports.Module = class Module extends Base
     @body.classBody = yes
 
   children: ['variable', 'body']
-
-  # Figure out the appropriate name for the constructor function of this class.
-  determineName: ->
-    return null unless @variable
-    decl = if tail = last @variable.properties
-      tail instanceof Access and tail.name.value
-    else
-      @variable.base.value
-    decl and= IDENTIFIER.test(decl) and decl
-
-  # For all `this`-references and bound functions in the class definition,
-  # `this` is the Class being constructed.
-  setContext: (name) ->
-    @body.traverseChildren false, (node) ->
-      return false if node.classBody
-      if node instanceof Literal and node.value is 'this'
-        node.value    = name
-      else if node instanceof Code
-        node.klass    = name
-        node.context  = name if node.bound
-
-  # Ensure that all functions bound to the instance are proxied in the
-  # constructor.
-  addBoundFunctions: (o) ->
-    if @boundFuncs.length
-      for bvar in @boundFuncs
-        lhs = (new Value (new Literal "this"), [new Access bvar]).compile o
-        @ctor.body.unshift new Literal "#{lhs} = #{utility 'bind'}(#{lhs}, this)"
-
-  # Merge the properties from a top-level object as prototypal properties
-  # on the class.
-  addProperties: (node, name, o) ->
-    props = node.base.properties.slice 0
-    exprs = while assign = props.shift()
-      if assign instanceof Assign
-        base = assign.variable.base
-        delete assign.context
-        func = assign.value
-        
-        unless assign.variable.this
-          assign.variable = new Value(new Literal(name), [new Access(base, 'proto')])
-        if func instanceof Code and func.bound
-          @boundFuncs.push base
-          func.bound = no
-      assign
-    compact exprs
-
-  # Walk the body of the class, looking for prototype properties to be converted.
-  walkBody: (name, o) ->
-    @traverseChildren false, (child) =>
-      return false if child instanceof Module
-      if child instanceof Block
-        for node, i in exps = child.expressions
-          if node instanceof Value and node.isObject(true)
-            exps[i] = @addProperties node, name, o
-        child.expressions = exps = flatten exps
-
-  # Make sure that a constructor is defined for the class, and properly
-  # configured.
-  ensureConstructor: (name) ->
-    if not @ctor
-      @ctor = new Code
-      @ctor.body.push new Literal "#{name}.__super__.constructor.apply(this, arguments)" if @parent
-      @ctor.body.push new Literal "#{@externalCtor}.apply(this, arguments)" if @externalCtor
-      @body.expressions.unshift @ctor
-    @ctor.ctor     = @ctor.name = name
-    @ctor.klass    = null
-    @ctor.noReturn = yes
-
-  # Instead of generating the JavaScript string directly, we build up the
-  # equivalent syntax tree and compile that, in pieces. You can see the
-  # constructor, property assignments, and inheritance getting built out below.
-  compileNode: (o) ->
-    decl  = @determineName()
-    name  = decl or @name or '_Class'
-    lname = new Literal name
-
-    @setContext name
-    @walkBody name, o
-    @ensureConstructor name
-    @body.expressions.unshift @ctor unless @ctor instanceof Code
-    @body.expressions.push lname
-    @addBoundFunctions o
-
-    klass = new Parens Closure.wrap(@body), true
-    klass = new Assign @variable, klass if @variable
-    klass.compile o
 
 #### Assign
 
@@ -859,133 +385,6 @@ exports.Assign = class Assign extends Base
   assigns: (name) ->
     @[if @context is 'object' then 'value' else 'variable'].assigns name
 
-  unfoldSoak: (o) ->
-    unfoldSoak o, this, 'variable'
-
-  # Compile an assignment, delegating to `compilePatternMatch` or
-  # `compileSplice` if appropriate. Keep track of the name of the base object
-  # we've been assigned to, for correct internal references. If the variable
-  # has not been seen yet within the current scope, declare it.
-  compileNode: (o) ->
-    if isValue = @variable instanceof Value
-      return @compilePatternMatch o if @variable.isArray() or @variable.isObject()
-      return @compileSplice       o if @variable.isSplice()
-      return @compileConditional  o if @context in ['||=', '&&=', '?=']
-    name = @variable.compile o, LEVEL_LIST
-    unless @context or @variable.isAssignable()
-      throw SyntaxError "\"#{ @variable.compile o }\" cannot be assigned."
-    unless @context or isValue and (@variable.namespaced or @variable.hasProperties())
-      if @param
-        o.scope.add name, 'var'
-      else
-        o.scope.find name
-    if @value instanceof Code and match = METHOD_DEF.exec name
-      @value.klass = match[1] if match[1]
-      @value.name  = match[2] ? match[3] ? match[4] ? match[5]
-    val = @value.compile o, LEVEL_LIST
-    return "#{name}: #{val}" if @context is 'object'
-    val = name + " #{ @context or '=' } " + val
-    if o.level <= LEVEL_LIST then val else "(#{val})"
-
-  # Brief implementation of recursive pattern matching, when assigning array or
-  # object literals to a value. Peeks at their properties to assign inner names.
-  # See the [ECMAScript Harmony Wiki](http://wiki.ecmascript.org/doku.php?id=harmony:destructuring)
-  # for details.
-  compilePatternMatch: (o) ->
-    top       = o.level is LEVEL_TOP
-    {value}   = this
-    {objects} = @variable.base
-    unless olen = objects.length
-      code = value.compile o
-      return if o.level >= LEVEL_OP then "(#{code})" else code
-    isObject = @variable.isObject()
-    if top and olen is 1 and (obj = objects[0]) not instanceof Splat
-      # Unroll simplest cases: `{v} = x` -> `v = x.v`
-      if obj instanceof Assign
-        {variable: {base: idx}, value: obj} = obj
-      else
-        if obj.base instanceof Parens
-          [obj, idx] = new Value(obj.unwrapAll()).cacheReference o
-        else
-          idx = if isObject
-            if obj.this then obj.properties[0].name else obj
-          else
-            new Literal 0
-      acc   = IDENTIFIER.test idx.unwrap().value or 0
-      value = new Value value
-      value.properties.push new (if acc then Access else Index) idx
-      return new Assign(obj, value, null, param: @param).compile o, LEVEL_TOP
-    vvar    = value.compile o, LEVEL_LIST
-    assigns = []
-    splat   = false
-    if not IDENTIFIER.test(vvar) or @variable.assigns(vvar)
-      assigns.push "#{ ref = o.scope.freeVariable 'ref' } = #{vvar}"
-      vvar = ref
-    for obj, i in objects
-      # A regular array pattern-match.
-      idx = i
-      if isObject
-        if obj instanceof Assign
-          # A regular object pattern-match.
-          {variable: {base: idx}, value: obj} = obj
-        else
-          # A shorthand `{a, b, @c} = val` pattern-match.
-          if obj.base instanceof Parens
-            [obj, idx] = new Value(obj.unwrapAll()).cacheReference o
-          else
-            idx = if obj.this then obj.properties[0].name else obj
-      if not splat and obj instanceof Splat
-        val = "#{olen} <= #{vvar}.length ? #{ utility 'slice' }.call(#{vvar}, #{i}"
-        if rest = olen - i - 1
-          ivar = o.scope.freeVariable 'i'
-          val += ", #{ivar} = #{vvar}.length - #{rest}) : (#{ivar} = #{i}, [])"
-        else
-          val += ") : []"
-        val   = new Literal val
-        splat = "#{ivar}++"
-      else
-        if obj instanceof Splat
-          obj = obj.name.compile o
-          throw SyntaxError \
-            "multiple splats are disallowed in an assignment: #{obj} ..."
-        if typeof idx is 'number'
-          idx = new Literal splat or idx
-          acc = no
-        else
-          acc = isObject and IDENTIFIER.test idx.unwrap().value or 0
-        val = new Value new Literal(vvar), [new (if acc then Access else Index) idx]
-      assigns.push new Assign(obj, val, null, param: @param).compile o, LEVEL_TOP
-    assigns.push vvar unless top
-    code = assigns.join ', '
-    if o.level < LEVEL_LIST then code else "(#{code})"
-
-  # When compiling a conditional assignment, take care to ensure that the
-  # operands are only evaluated once, even though we have to reference them
-  # more than once.
-  compileConditional: (o) ->
-    [left, rite] = @variable.cacheReference o
-    if "?" in @context then o.isExistentialEquals = true
-    new Op(@context.slice(0, -1), left, new Assign(rite, @value, '=') ).compile o
-
-  # Compile the assignment from an array splice literal, using JavaScript's
-  # `Array#splice` method.
-  compileSplice: (o) ->
-    {range: {from, to, exclusive}} = @variable.properties.pop()
-    name = @variable.compile o
-    [fromDecl, fromRef] = from?.cache(o, LEVEL_OP) or ['0', '0']
-    if to
-      if from?.isSimpleNumber() and to.isSimpleNumber()
-        to = +to.compile(o) - +fromRef
-        to += 1 unless exclusive
-      else
-        to = to.compile(o) + ' - ' + fromRef
-        to += ' + 1' unless exclusive
-    else
-      to = "9e9"
-    [valDef, valRef] = @value.cache o, LEVEL_LIST
-    code = "[].splice.apply(#{name}, [#{fromDecl}, #{to}].concat(#{valDef})), #{valRef}"
-    if o.level > LEVEL_TOP then "(#{code})" else code
-
 #### Code
 
 # A function definition. 
@@ -998,50 +397,6 @@ exports.Code = class Code extends Base
   isStatement: -> !!@ctor
 
   jumps: NO
-
-  # Compilation creates a new scope unless explicitly asked to share with the
-  # outer scope. Handles splat parameters in the parameter list by peeking at
-  # the JavaScript `arguments` objects. If the function is bound with the `=>`
-  # arrow, generates a wrapper that saves the current value of `this` through
-  # a closure.
-  compileNode: (o) ->
-    o.scope         = new Scope o.scope, @body, this
-    o.scope.shared  = del o, 'sharedScope'
-    o.indent        += TAB
-    delete o.bare
-    vars   = []
-    exprs  = []
-    for param in @params when param.splat
-      o.scope.add p.name.value, 'var', yes for p in @params when p.name.value
-      splats = new Assign new Value(new Arr(p.asReference o for p in @params)),
-                          new Value new Literal 'arguments'
-      break
-    for param in @params
-      if param.isComplex()
-        val = ref = param.asReference o
-        val = new Op '?', ref, param.value if param.value
-        exprs.push new Assign new Value(param.name), val, '=', param: yes
-      else
-        ref = param
-        if param.value
-          lit = new Literal ref.name.value + ' == null'
-          val = new Assign new Value(param.name), param.value, '='
-          exprs.push new If lit, val
-      vars.push ref unless splats
-    wasEmpty = @body.isEmpty()
-    exprs.unshift splats if splats
-    @body.expressions.unshift exprs... if exprs.length
-    o.scope.parameter vars[i] = v.compile o for v, i in vars unless splats
-    @body.makeReturn() unless wasEmpty or @noReturn
-    idt   = o.indent
-    code  = 'function'
-    code  += ' ' + @name if @ctor
-    code  += '(' + vars.join(', ') + ') {'
-    code  += "\n#{ @body.compileWithDeclarations o }\n#{@tab}" unless @body.isEmpty()
-    code  += '}'
-    return @tab + code if @ctor
-    return utility('bind') + "(#{code}, #{@context})" if @bound
-    if @front or (o.level >= LEVEL_ACCESS) then "(#{code})" else code
 
   # Short-circuit `traverseChildren` method to prevent it from crossing scope boundaries
   # unless `crossScope` is `true`.
@@ -1121,328 +476,8 @@ exports.Op = class Op extends Base
     else
       new Op '!', this
 
-  unfoldSoak: (o) ->
-    @operator in ['++', '--', 'delete'] and unfoldSoak o, this, 'first'
-
-  compileNode: (o) ->
-    return @compileUnary     o if @isUnary()
-    return @compileChain     o if @isChainable() and @first.isChainable()
-    return @compileExistence o if @operator is '?'
-    @first.front = @front
-    code = @first.compile(o, LEVEL_OP) + ' ' + @operator + ' ' +
-           @second.compile(o, LEVEL_OP)
-    if o.level <= LEVEL_OP then code else "(#{code})"
-
-  # Mimic Python's chained comparisons when multiple comparison operators are
-  # used sequentially. For example:
-  #
-  #     bin/coffee -e 'console.log 50 < 65 > 10'
-  #     true
-  compileChain: (o) ->
-    [@first.second, shared] = @first.second.cache o
-    fst = @first.compile o, LEVEL_OP
-    code = "#{fst} #{if @invert then '&&' else '||'} #{ shared.compile o } #{@operator} #{ @second.compile o, LEVEL_OP }"
-    "(#{code})"
-
-  compileExistence: (o) ->
-    if @first.isComplex()
-      ref = new Literal o.scope.freeVariable 'ref'
-      fst = new Parens new Assign ref, @first
-    else
-      fst = @first
-      ref = fst
-    new If(new Existence(fst), ref, type: 'if').addElse(@second).compile o
-
-  # Compile a unary **Op**.
-  compileUnary: (o) ->
-    parts = [op = @operator]
-    parts.push ' ' if op in ['new', 'typeof', 'delete'] or
-                      op in ['+', '-'] and @first instanceof Op and @first.operator is op
-    @first = new Parens @first if op is 'new' and @first.isStatement o
-    parts.push @first.compile o, LEVEL_OP
-    parts.reverse() if @flip
-    parts.join ''
-
   toString: (idt) ->
     super idt, @constructor.name + ' ' + @operator
-
-#### In
-exports.In = class In extends Base
-  constructor: (@object, @array) ->
-
-  children: ['object', 'array']
-
-  invert: NEGATE
-
-  compileNode: (o) ->
-    if @array instanceof Value and @array.isArray()
-      for obj in @array.base.objects when obj instanceof Splat
-        hasSplat = yes
-        break
-      # `compileOrTest` only if we have an array literal with no splats
-      return @compileOrTest o unless hasSplat
-    @compileLoopTest o
-
-  compileOrTest: (o) ->
-    [sub, ref] = @object.cache o, LEVEL_OP
-    [cmp, cnj] = if @negated then [' !== ', ' && '] else [' === ', ' || ']
-    tests = for item, i in @array.base.objects
-      (if i then ref else sub) + cmp + item.compile o, LEVEL_OP
-    return 'false' if tests.length is 0
-    tests = tests.join cnj
-    if o.level < LEVEL_OP then tests else "(#{tests})"
-
-  compileLoopTest: (o) ->
-    [sub, ref] = @object.cache o, LEVEL_LIST
-    code = utility('indexOf') + ".call(#{ @array.compile o, LEVEL_LIST }, #{ref}) " +
-           if @negated then '< 0' else '>= 0'
-    return code if sub is ref
-    code = sub + ', ' + code
-    if o.level < LEVEL_LIST then code else "(#{code})"
-
-  toString: (idt) ->
-    super idt, @constructor.name + if @negated then '!' else ''
-
-#### Try
-
-# A classic *try/catch/finally* block.
-exports.Try = class Try extends Base
-  constructor: (@attempt, @error, @recovery, @ensure) ->
-
-  children: ['attempt', 'recovery', 'ensure']
-
-  isStatement: YES
-
-  jumps: (o) -> @attempt.jumps(o) or @recovery?.jumps(o)
-
-  makeReturn: ->
-    @attempt  = @attempt .makeReturn() if @attempt
-    @recovery = @recovery.makeReturn() if @recovery
-    this
-
-  # Compilation is more or less as you would expect -- the *finally* clause
-  # is optional, the *catch* is not.
-  compileNode: (o) ->
-    o.indent  += TAB
-    errorPart = if @error then " (#{ @error.compile o }) " else ' '
-    catchPart = if @recovery
-      " catch#{errorPart}{\n#{ @recovery.compile o, LEVEL_TOP }\n#{@tab}}"
-    else unless @ensure or @recovery
-      ' catch (_e) {}'
-    """
-    #{@tab}try {
-    #{ @attempt.compile o, LEVEL_TOP }
-    #{@tab}}#{ catchPart or '' }
-    """ + if @ensure then " finally {\n#{ @ensure.compile o, LEVEL_TOP }\n#{@tab}}" else ''
-
-#### Throw
-
-# Simple node to throw an exception.
-exports.Throw = class Throw extends Base
-  constructor: (@expression) ->
-
-  children: ['expression']
-
-  isStatement: YES
-  jumps:       NO
-
-  # A **Throw** is already a return, of sorts...
-  makeReturn: THIS
-
-  compileNode: (o) ->
-    @tab + "throw #{ @expression.compile o };"
-
-#### Existence
-
-# Checks a variable for existence -- not *null* and not *undefined*. This is
-# similar to `.nil?` in Ruby, and avoids having to consult a JavaScript truth
-# table.
-exports.Existence = class Existence extends Base
-  constructor: (@expression) ->
-
-  children: ['expression']
-
-  invert: NEGATE
-
-  compileNode: (o) ->
-    code = @expression.compile o, LEVEL_OP
-    code = if IDENTIFIER.test(code) and not o.scope.check code
-        [cmp, cnj] = if @negated then ['===', '||'] else ['!==', '&&']
-        "typeof #{code} #{cmp} \"undefined\" #{cnj} #{code} #{cmp} null"
-    else
-      # do not use strict equality here; it will break existing code
-      "#{code} #{if @negated then '==' else '!='} null"
-    if o.level <= LEVEL_COND then code else "(#{code})"
-
-#### Parens
-
-# An extra set of parentheses, specified explicitly in the source. At one time
-# we tried to clean up the results by detecting and removing redundant
-# parentheses, but no longer -- you can put in as many as you please.
-#
-# Parentheses are a good way to force any statement to become an expression.
-exports.Parens = class Parens extends Base
-  constructor: (@body) ->
-
-  children: ['body']
-
-  unwrap    : -> @body
-  isComplex : -> @body.isComplex()
-  makeReturn: -> @body.makeReturn()
-
-  compileNode: (o) ->
-    expr = @body.unwrap()
-    if expr instanceof Value and expr.isAtomic()
-      expr.front = @front
-      return expr.compile o
-    code = expr.compile o, LEVEL_PAREN
-    bare = o.level < LEVEL_OP and (expr instanceof Op or expr instanceof Call or
-      (expr instanceof For and expr.returns))
-    if bare then code else "(#{code})"
-
-#### For
-
-# CoffeeScript's replacement for the *for* loop is our array and object
-# comprehensions, that compile into *for* loops here. They also act as an
-# expression, able to return the result of each filtered iteration.
-#
-# Unlike Python array comprehensions, they can be multi-line, and you can pass
-# the current index of the loop as a second parameter. Unlike Ruby blocks,
-# you can map and filter in a single pass.
-exports.For = class For extends Base
-  constructor: (body, source) ->
-    {@source, @guard, @step, @name, @index} = source
-    @body    = Block.wrap [body]
-    @own     = !!source.own
-    @object  = !!source.object
-    [@name, @index] = [@index, @name] if @object
-    throw SyntaxError 'index cannot be a pattern matching expression' if @index instanceof Value
-    @range   = @source instanceof Value and @source.base instanceof Range and not @source.properties.length
-    @pattern = @name instanceof Value
-    throw SyntaxError 'indexes do not apply to range loops' if @range and @index
-    throw SyntaxError 'cannot pattern match over range loops' if @range and @pattern
-    @returns = false
-
-  children: ['body', 'source', 'guard', 'step']
-
-  isStatement: YES
-
-  makeReturn: ->
-    @returns = yes
-    this
-
-  # Welcome to the hairiest method in all of CoffeeScript. Handles the inner
-  # loop, filtering, stepping, and result saving for array, object, and range
-  # comprehensions. Some of the generated code can be shared in common, and
-  # some cannot.
-  compileNode: (o) ->
-    body      = Block.wrap [@body]
-    lastJumps = last(body.expressions)?.jumps()
-    @returns  = no if lastJumps and lastJumps instanceof Return
-    source    = if @range then @source.base else @source
-    scope     = o.scope
-    name      = @name  and @name.compile o, LEVEL_LIST
-    index     = @index and @index.compile o, LEVEL_LIST
-    scope.find(name,  immediate: yes) if name and not @pattern
-    scope.find(index, immediate: yes) if index
-    rvar      = scope.freeVariable 'results' if @returns
-    ivar      = (if @range then name else index) or scope.freeVariable 'i'
-    # the `_by` variable is created twice in `Range`s if we don't prevent it from being declared here
-    stepvar   = scope.freeVariable "step" if @step and not @range
-    name      = ivar if @pattern
-    varPart   = ''
-    guardPart = ''
-    defPart   = ''
-    idt1      = @tab + TAB
-    if @range
-      forPart = source.compile merge(o, {index: ivar, @step})
-    else
-      svar    = @source.compile o, LEVEL_LIST
-      if (name or @own) and not IDENTIFIER.test svar
-        defPart    = "#{@tab}#{ref = scope.freeVariable 'ref'} = #{svar};\n"
-        svar       = ref
-      if name and not @pattern
-        namePart   = "#{name} = #{svar}[#{ivar}]"
-      unless @object
-        lvar       = scope.freeVariable 'len'
-        forVarPart = "#{ivar} = 0, #{lvar} = #{svar}.length" + if @step then ", #{stepvar} = #{@step.compile(o, LEVEL_OP)}" else ''
-        stepPart   = if @step then "#{ivar} += #{stepvar}" else "#{ivar}++"
-        forPart    = "#{forVarPart}; #{ivar} < #{lvar}; #{stepPart}"
-    if @returns
-      resultPart   = "#{@tab}#{rvar} = [];\n"
-      returnResult = "\n#{@tab}return #{rvar};"
-      body         = Push.wrap rvar, body
-    if @guard
-      body         = Block.wrap [new If @guard, body]
-    if @pattern
-      body.expressions.unshift new Assign @name, new Literal "#{svar}[#{ivar}]"
-    defPart     += @pluckDirectCall o, body
-    varPart     = "\n#{idt1}#{namePart};" if namePart
-    if @object
-      forPart   = "#{ivar} in #{svar}"
-      guardPart = "\n#{idt1}if (!#{utility('hasProp')}.call(#{svar}, #{ivar})) continue;" if @own
-    body        = body.compile merge(o, indent: idt1), LEVEL_TOP
-    body        = '\n' + body + '\n' if body
-    """
-    #{defPart}#{resultPart or ''}#{@tab}for (#{forPart}) {#{guardPart}#{varPart}#{body}#{@tab}}#{returnResult or ''}
-    """
-
-  pluckDirectCall: (o, body) ->
-    defs = ''
-    for expr, idx in body.expressions
-      expr = expr.unwrapAll()
-      continue unless expr instanceof Call
-      val = expr.variable.unwrapAll()
-      continue unless (val instanceof Code) or
-                      (val instanceof Value and
-                      val.base?.unwrapAll() instanceof Code and
-                      val.properties.length is 1 and
-                      val.properties[0].name?.value in ['call', 'apply'])
-      fn    = val.base?.unwrapAll() or val
-      ref   = new Literal o.scope.freeVariable 'fn'
-      base  = new Value ref
-      if val.base
-        [val.base, base] = [base, val]
-        args.unshift new Literal 'this'
-      body.expressions[idx] = new Call base, expr.args
-      defs += @tab + new Assign(ref, fn).compile(o, LEVEL_TOP) + ';\n'
-    defs
-
-#### Switch
-
-# A JavaScript *switch* statement. Converts into a returnable expression on-demand.
-exports.Switch = class Switch extends Base
-  constructor: (@subject, @cases, @otherwise) ->
-
-  children: ['subject', 'cases', 'otherwise']
-
-  isStatement: YES
-
-  jumps: (o = {block: yes}) ->
-    for [conds, block] in @cases
-      return block if block.jumps o
-    @otherwise?.jumps o
-
-  makeReturn: ->
-    pair[1].makeReturn() for pair in @cases
-    @otherwise?.makeReturn()
-    this
-
-  compileNode: (o) ->
-    idt1 = o.indent + TAB
-    idt2 = o.indent = idt1 + TAB
-    code = @tab + "switch (#{ @subject?.compile(o, LEVEL_PAREN) or false }) {\n"
-    for [conditions, block], i in @cases
-      for cond in flatten [conditions]
-        cond  = cond.invert() unless @subject
-        code += idt1 + "case #{ cond.compile o, LEVEL_PAREN }:\n"
-      code += body + '\n' if body = block.compile o, LEVEL_TOP
-      break if i is @cases.length - 1 and not @otherwise
-      expr = @lastNonComment block.expressions
-      continue if expr instanceof Return or (expr instanceof Literal and expr.jumps() and expr.value isnt 'debugger')
-      code += idt2 + 'break;\n'
-    code += idt1 + "default:\n#{ @otherwise.compile o, LEVEL_TOP }\n" if @otherwise and @otherwise.expressions.length
-    code +  @tab + '}'
 
 #### Conditional
 
@@ -1488,9 +523,6 @@ exports.If = class If extends Base
 
   jumps: (o) -> @body.jumps(o) or @elseBody?.jumps(o)
 
-  compileNode: (o) ->
-    if @isStatement o then @compileStatement o else @compileExpression o
-
   makeReturn: ->
     @body     and= new Block [@body.makeReturn()]
     @elseBody and= new Block [@elseBody.makeReturn()]
@@ -1498,82 +530,6 @@ exports.If = class If extends Base
 
   ensureBlock: (node) ->
     if node instanceof Block then node else new Block [node]
-
-  # Compile the **If** as a regular *if-else* statement. Flattened chains
-  # force inner *else* bodies into statement form.
-  compileStatement: (o) ->
-    child    = del o, 'chainChild'
-    exeq     = del o, 'isExistentialEquals'
-
-    if exeq
-      return new If(@condition.invert(), @elseBodyNode(), type: 'if').compile o
-
-    cond     = @condition.compile o, LEVEL_PAREN
-    o.indent += TAB
-    body     = @ensureBlock(@body).compile o
-    body     = "\n#{body}\n#{@tab}" if body
-    ifPart   = "if (#{cond}) {#{body}}"
-    ifPart   = @tab + ifPart unless child
-    return ifPart unless @elseBody
-    ifPart + ' else ' + if @isChain
-      o.indent = @tab
-      o.chainChild = yes
-      @elseBody.unwrap().compile o, LEVEL_TOP
-    else
-      "{\n#{ @elseBody.compile o, LEVEL_TOP }\n#{@tab}}"
-
-  # Compile the If as a conditional operator.
-  compileExpression: (o) ->
-    cond = @condition.compile o, LEVEL_COND
-    body = @bodyNode().compile o, LEVEL_LIST
-    alt  = if @elseBodyNode() then @elseBodyNode().compile(o, LEVEL_LIST) else 'void 0'
-    code = "#{cond} ? #{body} : #{alt}"
-    if o.level >= LEVEL_COND then "(#{code})" else code
-
-  unfoldSoak: ->
-    @soak and this
-
-# Faux-Nodes
-# ----------
-# Faux-nodes are never created by the grammar, but are used during code
-# generation to generate other combinations of nodes.
-
-#### Push
-
-# The **Push** creates the tree for `array.push(value)`,
-# which is helpful for recording the result arrays from comprehensions.
-Push =
-  wrap: (name, exps) ->
-    return exps if exps.isEmpty() or last(exps.expressions).jumps()
-    exps.push new Call new Value(new Literal(name), [new Access new Literal 'push']), [exps.pop()]
-
-#### Closure
-
-# A faux-node used to wrap an expressions body in a closure.
-Closure =
-
-  # Wrap the expressions body, unless it contains a pure statement,
-  # in which case, no dice. If the body mentions `this` or `arguments`,
-  # then make sure that the closure wrapper preserves the original values.
-  wrap: (expressions, statement, noReturn) ->
-    return expressions if expressions.jumps()
-    func = new Code [], Block.wrap [expressions]
-    args = []
-    if (mentionsArgs = expressions.contains @literalArgs) or expressions.contains @literalThis
-      meth = new Literal if mentionsArgs then 'apply' else 'call'
-      args = [new Literal 'this']
-      args.push new Literal 'arguments' if mentionsArgs
-      func = new Value func, [new Access meth]
-    func.noReturn = noReturn
-    call = new Call func, args
-    if statement then Block.wrap [call] else call
-
-  literalArgs: (node) ->
-    node instanceof Literal and node.value is 'arguments' and not node.asKey
-  literalThis: (node) ->
-    (node instanceof Literal and node.value is 'this' and not node.asKey) or
-      (node instanceof Code and node.bound)
-
 # Unfold a node's child if soak, then tuck the node under created `If`
 unfoldSoak = (o, parent, name) ->
   return unless ifn = parent[name].unfoldSoak o
@@ -1583,40 +539,6 @@ unfoldSoak = (o, parent, name) ->
 
 # Constants
 # ---------
-
-UTILITIES =
-
-  # Correctly set up a prototype chain for inheritance, including a reference
-  # to the superclass for `super()` calls, and copies of any static properties.
-  extends: '''
-    function(child, parent) {
-      for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
-      function ctor() { this.constructor = child; }
-      ctor.prototype = parent.prototype;
-      child.prototype = new ctor;
-      child.__super__ = parent.prototype;
-      return child;
-    }
-  '''
-
-  # Create a function bound to the current value of "this".
-  bind: '''
-    function(fn, me){ return function(){ return fn.apply(me, arguments); }; }
-  '''
-
-  # Discover if an item is in an array.
-  indexOf: '''
-    Array.prototype.indexOf || function(item) {
-      for (var i = 0, l = this.length; i < l; i++) {
-        if (this[i] === item) return i;
-      }
-      return -1;
-    }
-  '''
-
-  # Shortcuts to speed up the lookup time for native functions.
-  hasProp: 'Object.prototype.hasOwnProperty'
-  slice  : 'Array.prototype.slice'
 
 # Levels indicates a node's position in the AST. Useful for knowing if
 # parens are necessary or superfluous.
