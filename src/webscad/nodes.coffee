@@ -52,7 +52,6 @@ exports.Base = class Base
   # This is what `coffee --nodes` prints out.
   toString: (idt = '', name = @constructor.name) ->
     tree = '\n' + idt + name
-    tree += '?' if @soak
     @eachChild (node) -> tree += node.toString idt + TAB
     tree
 
@@ -88,7 +87,6 @@ exports.Base = class Base
   isAssignable    : NO
 
   unwrap     : THIS
-  unfoldSoak : NO
 
   # Is this node used to assign a certain variable?
   assigns: NO
@@ -210,7 +208,7 @@ exports.Value = class Value extends Base
   isSimpleNumber : -> @base instanceof Literal and SIMPLENUM.test @base.value
   isAtomic       : ->
     for node in @properties.concat @base
-      return no if node.soak or node instanceof Call
+      return no if node instanceof Call
     yes
 
   isStatement : (o)    -> not @properties.length and @base.isStatement o
@@ -499,7 +497,6 @@ exports.If = class If extends Base
   constructor: (@condition, @body, options = {}) ->
     @elseBody  = null
     @isChain   = false
-    {@soak}    = options
 
   children: ['condition', 'body', 'elseBody']
 
@@ -530,12 +527,6 @@ exports.If = class If extends Base
 
   ensureBlock: (node) ->
     if node instanceof Block then node else new Block [node]
-# Unfold a node's child if soak, then tuck the node under created `If`
-unfoldSoak = (o, parent, name) ->
-  return unless ifn = parent[name].unfoldSoak o
-  parent[name] = ifn.body
-  ifn.body = new Value parent
-  ifn
 
 # Constants
 # ---------
