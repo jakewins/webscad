@@ -84,7 +84,7 @@ task 'doc:source', 'rebuild the internal documentation', ->
     throw err if err
 
 
-# Run the CoffeeScript test suite.
+# Run the test suite.
 runTests = (CoffeeScript) ->
   startTime   = Date.now()
   currentFile = null
@@ -163,7 +163,7 @@ runTests = (CoffeeScript) ->
           failures.push file: currentFile, error: e
 
 
-task 'test', 'run the CoffeeScript language test suite', ->
+task 'test', 'run the full test suite', ->
   runTests CoffeeScript
 
 

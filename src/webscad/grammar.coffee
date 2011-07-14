@@ -14,7 +14,7 @@
 # If you run the `cake build:parser` command, Jison constructs a parse table
 # from our rules and saves it into `lib/parser.js`.
 
-# The only dependency is on the **Jison.Parser**.
+# The only dependency is on the **jison.Parser**.
 {Parser} = require 'jison'
 
 # Jison DSL
@@ -58,119 +58,63 @@ grammar =
   Root: [
     o '',                                       -> new Block
     o 'Body'
+    o 'Block'
     o 'Block TERMINATOR'
+  ]
+
+  # A block consists of a list of statements.
+  Block: [
+    o '{ }',                                    -> new Block
+    o '{ TERMINATOR }',                         -> new Block
+    o '{ Body }',                               -> $2
+    o '{ TERMINATOR Body }',                    -> $3
   ]
 
   # Any list of statements and expressions, separated by line breaks or semicolons.
   Body: [
-    o 'Line',                                   -> Block.wrap [$1]
-    o 'Body TERMINATOR Line',                   -> $1.push $3
+    o 'Statement',                                   -> Block.wrap [$1]
+    o 'Body TERMINATOR Statement',                   -> $1.push $3
     o 'Body TERMINATOR'
   ]
 
-  # Block and statements, which make up a line in a body.
-  Line: [
-    o 'Expression'
-    o 'Statement'
-  ]
-
-  # Pure statements which cannot be expressions.
+  # Statements
   Statement: [
-    o 'Return'
-    o 'Throw'
+    o 'Module'
+    o 'ModuleInvocation'
+    o 'Assign'
+    o 'Code'
+    o 'If'
     o 'Comment'
-    o 'STATEMENT',                              -> new Literal $1
   ]
 
-  # All the different types of expressions in our language. The basic unit of
-  # CoffeeScript is the **Expression** -- everything that can be an expression
-  # is one. Block serve as the building blocks of many other rules, making
-  # them somewhat circular.
+  # Expressions
   Expression: [
     o 'Value'
     o 'Invocation'
-    o 'Code'
     o 'Operation'
-    o 'Assign'
-    o 'If'
-    o 'Try'
-    o 'While'
-    o 'For'
-    o 'Switch'
-    o 'Class'
-  ]
-
-  # An indented block of expressions. Note that the [Rewriter](rewriter.html)
-  # will convert some postfix forms into blocks for us, by adjusting the
-  # token stream.
-  Block: [
-    o 'INDENT OUTDENT',                         -> new Block
-    o 'INDENT Body OUTDENT',                    -> $2
+    o 'Conditional'
   ]
 
   # A literal identifier, a variable name or property.
   Identifier: [
-    o 'IDENTIFIER',                             -> new Literal $1
-  ]
-
-  # Alphanumerics are separated from the other **Literal** matchers because
-  # they can also serve as keys in object literals.
-  AlphaNumeric: [
-  ]
-
-  # All of our immediate values. These can (in general), be passed straight
-  # through and printed to JavaScript.
-  Literal: [
-    o 'JS',                                     -> new Literal $1
-    o 'REGEX',                                  -> new Literal $1
+    o 'IDENTIFIER',                             -> new Identifier $1
   ]
 
   # Assignment of a variable, property, or index to a value.
   Assign: [
     o 'Assignable = Expression',                -> new Assign $1, $3
-    o 'Assignable = INDENT Expression OUTDENT', -> new Assign $1, $4
   ]
 
-  # Assignment when it happens within an object literal. The difference from
-  # the ordinary **Assign** is that these allow numbers and strings as keys.
-  AssignObj: [
-    o 'ObjAssignable',                          -> new Value $1
-    o 'ObjAssignable : Expression',             -> new Assign new Value($1), $3, 'object'
-    o 'ObjAssignable :
-       INDENT Expression OUTDENT',              -> new Assign new Value($1), $4, 'object'
-    o 'Comment'
-  ]
-
-  ObjAssignable: [
-    o 'Identifier'
-    o 'AlphaNumeric'
-    o 'ThisProperty'
-  ]
-
-  # A return statement from a function body.
-  Return: [
-    o 'RETURN Expression',                      -> new Return $2
-    o 'RETURN',                                 -> new Return
-  ]
-
-  # A block comment.
+  # A comment.
   Comment: [
-    o 'HERECOMMENT',                            -> new Comment $1
+    o 'COMMENT',                                -> new Comment $1
   ]
 
   # The **Code** node is the function literal. It's defined by an indented block
   # of **Block** preceded by a function arrow, with an optional parameter
   # list.
   Code: [
-    o 'PARAM_START ParamList PARAM_END FuncGlyph Block', -> new Code $2, $5, $4
-    o 'FuncGlyph Block',                        -> new Code [], $2, $1
-  ]
-
-  # CoffeeScript has two different symbols for functions. `->` is for ordinary
-  # functions, and `=>` is for functions bound to the current value of *this*.
-  FuncGlyph: [
-    o '->',                                     -> 'func'
-    o '=>',                                     -> 'boundfunc'
+    o 'FUNCTION Identifier PARAM_START ParamList PARAM_END = Expression', -> new Code $2, $4, $7
   ]
 
   # An optional, trailing comma.
@@ -182,121 +126,73 @@ grammar =
   # The list of parameters that a function accepts can be of any length.
   ParamList: [
     o '',                                       -> []
-    o 'Param',                                  -> [$1]
-    o 'ParamList , Param',                      -> $1.concat $3
-  ]
-
-  # A single parameter in a function definition can be ordinary, or a splat
-  # that hoovers up the remaining arguments.
-  Param: [
-    o 'ParamVar',                               -> new Param $1
-    o 'ParamVar ...',                           -> new Param $1, null, on
-    o 'ParamVar = Expression',                  -> new Param $1, $3
-  ]
-
-  ParamVar: [
-    o 'Identifier'
-    o 'ThisProperty'
-    o 'Array'
-    o 'Object'
-  ]
-
-  # A splat that occurs outside of a parameter list.
-  Splat: [
-    o 'Expression ...',                         -> new Splat $1
-  ]
-
-  # Variables and properties that can be assigned to.
-  SimpleAssignable: [
-    o 'Identifier',                             -> new Value $1
-    o 'Value Accessor',                         -> $1.push $2
-    o 'Invocation Accessor',                    -> new Value $1, [$2]
-    o 'ThisProperty'
+    o 'Identifier',                             -> [$1]
+    o 'ParamList , Identifier',                 -> $1.concat $3
   ]
 
   # Everything that can be assigned to.
   Assignable: [
-    o 'SimpleAssignable'
-    o 'Array'
-    
-    o 'Object',                                 -> new Value $1
+    o 'Identifier'
+    o 'BasicValue IndexAccess',                      -> new IndexAccess $1, $2
+    o 'BasicValue MemberAccess',                     -> new MemberAccess $1, $2
   ]
-
-  # The types of things that can be treated as values -- assigned to, invoked
-  # as functions, indexed into, named as a class, etc.
-  Value: [
+  
+  # Values that do not involve calling functions
+  BasicValue: [
     o 'Assignable'
     o 'NUMBER',                                 -> new NumberValue $1
     o 'STRING',                                 -> new StringValue $1
-    o 'BOOL',                                   -> new BooleanValue $1
-    o 'Literal',                                -> new Value $1
-    o 'Parenthetical',                          -> new Value $1
+    o 'BOOL',                                   ->
+      if $1 is 'undef' then new UndefinedValue
+      else new BooleanValue $1
     o 'Range'
-    o 'This'
+    o 'Vector'
   ]
 
-  # The general group of accessors into an object, by property, by prototype
-  # or by array index or slice.
-  Accessor: [
-    o '.  Identifier',                          -> new Access $2
-    o '?. Identifier',                          -> new Access $2, 'soak'
-    o ':: Identifier',                          -> new Access $2, 'proto'
-    o '::',                                     -> new Access new Literal 'prototype'
-    o 'Index'
+  # All things that can be treated as values
+  Value: [
+    o 'BasicValue'
+    o 'Invocation IndexAccess',                 -> new IndexAccess $1, $2
+    o 'Invocation MemberAccess',                -> new MemberAccess $1, $2
+  ]  
+  
+  IndexAccess: [
+    o 'INDEX_START Expression INDEX_END',       -> $2
+  ]
+  
+  MemberAccess: [
+    o '.  Identifier',                          -> $2
   ]
 
-  # Indexing into an object or array using bracket notation.
-  Index: [
-    o 'INDEX_START IndexValue INDEX_END',       -> $2
-    o 'INDEX_SOAK  Index',                      -> extend $2, soak : yes
-    o 'INDEX_PROTO Index',                      -> extend $2, proto: yes
+  Module: [
+    o 'MODULE Identifier PARAM_START ParamList PARAM_END Block', -> 
+      new Module $2, $4, $6
   ]
 
-  IndexValue: [
-    o 'Expression',                             -> new Index $1
-    o 'Slice',                                  -> new Slice $1
+  # Module invocation
+  ModuleInvocation: [
+    o 'Identifier Arguments',                        -> new ModuleCall $1, $2
+    o 'Identifier Arguments ModuleInvocations',   -> new ModuleCall $1, $2, $3
+  ]
+  
+  # Child module invocations, this is the "block statement"
+  # allowed in if constructs, in loops, and after module calls.
+  ModuleInvocations: [
+    o 'ModuleInvocation',                       -> [$1]
+    o '{ ModuleInvocationList }',               -> $2
   ]
 
-  # In CoffeeScript, an object literal is simply a list of assignments.
-  Object: [
-    o '{ AssignList OptComma }',                -> new Obj $2, $1.generated
+  ModuleInvocationList: [
+    o '',                                       -> []
+    o 'ModuleInvocation',                       -> [$1]
+    o 'ModuleInvocationList TERMINATOR ModuleInvocation', ->
+      $1.concat $3
+    o 'ModuleInvocationList TERMINATOR', -> $1
   ]
 
-  # Assignment of properties within an object literal can be separated by
-  # comma, as in JavaScript, or simply by newline.
-  AssignList: [
-    o '',                                                       -> []
-    o 'AssignObj',                                              -> [$1]
-    o 'AssignList , AssignObj',                                 -> $1.concat $3
-    o 'AssignList OptComma TERMINATOR AssignObj',               -> $1.concat $4
-    o 'AssignList OptComma INDENT AssignList OptComma OUTDENT', -> $1.concat $4
-  ]
-
-  # Class definitions have optional bodies of prototype property assignments,
-  # and optional references to the superclass.
-  Class: [
-    o 'CLASS',                                      -> new Class
-    o 'CLASS Block',                                -> new Class null, null, $2
-    o 'CLASS EXTENDS Value',                        -> new Class null, $3
-    o 'CLASS EXTENDS Value Block',                  -> new Class null, $3, $4
-    o 'CLASS SimpleAssignable',                     -> new Class $2
-    o 'CLASS SimpleAssignable Block',               -> new Class $2, null, $3
-    o 'CLASS SimpleAssignable EXTENDS Value',       -> new Class $2, $4
-    o 'CLASS SimpleAssignable EXTENDS Value Block', -> new Class $2, $4, $5
-  ]
-
-  # Ordinary function invocation, or a chained series of calls.
+  # Function invocation
   Invocation: [
-    o 'Value OptFuncExist Arguments',           -> new Call $1, $3, $2
-    o 'Invocation OptFuncExist Arguments',      -> new Call $1, $3, $2
-    o 'SUPER',                                  -> new Call 'super', [new Splat new Literal 'arguments']
-    o 'SUPER Arguments',                        -> new Call 'super', $2
-  ]
-
-  # An optional existence check on a function.
-  OptFuncExist: [
-    o '',                                       -> no
-    o 'FUNC_EXIST',                             -> yes
+    o 'Identifier Arguments',                        -> new FunctionCall $1, $2
   ]
 
   # The list of arguments to a function call.
@@ -305,19 +201,8 @@ grammar =
     o 'CALL_START ArgList OptComma CALL_END',   -> $2
   ]
 
-  # A reference to the *this* current object.
-  This: [
-    o 'THIS',                                   -> new Value new Literal 'this'
-    o '@',                                      -> new Value new Literal 'this'
-  ]
-
-  # A reference to a property on *this*.
-  ThisProperty: [
-    o '@ Identifier',                           -> new Value new Literal('this'), [new Access($2)], 'this'
-  ]
-
-  # The array literal.
-  Array: [
+  # Vector literal
+  Vector: [
     o '[ ]',                                    -> new VectorValue []
     o '[ ArgList OptComma ]',                   -> new VectorValue $2
   ]
@@ -326,86 +211,23 @@ grammar =
   Range: [
     o '[ Expression : Expression ]', -> 
       new RangeValue $2, new NumberValue(1), $4
-    o '[ Expression : Expression : Expression ]',    -> new RangeValue $2, $4, $6
-  ]
-
-  # Array slice literals.
-  Slice: [
-    
+    o '[ Expression : Expression : Expression ]',-> 
+      new RangeValue $2, $4, $6
   ]
 
   # The **ArgList** is both the list of objects passed into a function call,
   # as well as the contents of an array literal
   # (i.e. comma-separated expressions). Newlines work as well.
   ArgList: [
-    o 'Arg',                                              -> [$1]
-    o 'ArgList , Arg',                                    -> $1.concat $3
-    o 'ArgList OptComma TERMINATOR Arg',                  -> $1.concat $4
-    o 'INDENT ArgList OptComma OUTDENT',                  -> $2
-    o 'ArgList OptComma INDENT ArgList OptComma OUTDENT', -> $1.concat $4
+    o 'Arg',                                    -> [$1]
+    o 'ArgList , Arg',                          -> $1.concat $3
+    o 'ArgList OptComma TERMINATOR Arg',        -> $1.concat $4
   ]
 
-  # Valid arguments are Block or Splats.
+  # Valid arguments are Expressions
   Arg: [
     o 'Expression'
-    o 'Splat'
-  ]
-
-  # Just simple, comma-separated, required arguments (no fancy syntax). We need
-  # this to be separate from the **ArgList** for use in **Switch** blocks, where
-  # having the newlines wouldn't make sense.
-  SimpleArgs: [
-    o 'Expression'
-    o 'SimpleArgs , Expression',                -> [].concat $1, $3
-  ]
-
-  # The variants of *try/catch/finally* exception handling blocks.
-  Try: [
-    o 'TRY Block',                              -> new Try $2
-    o 'TRY Block Catch',                        -> new Try $2, $3[0], $3[1]
-    o 'TRY Block FINALLY Block',                -> new Try $2, null, null, $4
-    o 'TRY Block Catch FINALLY Block',          -> new Try $2, $3[0], $3[1], $5
-  ]
-
-  # A catch clause names its error and runs a block of code.
-  Catch: [
-    o 'CATCH Identifier Block',                 -> [$2, $3]
-  ]
-
-  # Throw an exception object.
-  Throw: [
-    o 'THROW Expression',                       -> new Throw $2
-  ]
-
-  # Parenthetical expressions. Note that the **Parenthetical** is a **Value**,
-  # not an **Expression**, so if you need to use an expression in a place
-  # where only values are accepted, wrapping it in parentheses will always do
-  # the trick.
-  Parenthetical: [
-    o '( Body )',                               -> new Parens $2
-    o '( INDENT Body OUTDENT )',                -> new Parens $3
-  ]
-
-  # The condition portion of a while loop.
-  WhileSource: [
-    o 'WHILE Expression',                       -> new While $2
-    o 'WHILE Expression WHEN Expression',       -> new While $2, guard: $4
-    o 'UNTIL Expression',                       -> new While $2, invert: true
-    o 'UNTIL Expression WHEN Expression',       -> new While $2, invert: true, guard: $4
-  ]
-
-  # The while loop can either be normal, with a block of expressions to execute,
-  # or postfix, with a single expression. There is no do..while.
-  While: [
-    o 'WhileSource Block',                      -> $1.addBody $2
-    o 'Statement  WhileSource',                 -> $2.addBody Block.wrap [$1]
-    o 'Expression WhileSource',                 -> $2.addBody Block.wrap [$1]
-    o 'Loop',                                   -> $1
-  ]
-
-  Loop: [
-    o 'LOOP Block',                             -> new While(new Literal 'true').addBody $2
-    o 'LOOP Expression',                        -> new While(new Literal 'true').addBody Block.wrap [$2]
+    o 'Assign'
   ]
 
   # Array, object, and range comprehensions, at the most generic level.
@@ -431,8 +253,7 @@ grammar =
   # This enables support for pattern matching.
   ForValue: [
     o 'Identifier'
-    o 'Array',                                  -> new Value $1
-    o 'Object',                                 -> new Value $1
+    o 'Vector',                                  -> new Value $1
   ]
 
   # An array or range comprehension has variables for the current element
@@ -455,40 +276,25 @@ grammar =
     o 'FORIN Expression WHEN Expression BY Expression', -> source: $2, guard: $4, step: $6
     o 'FORIN Expression BY Expression WHEN Expression', -> source: $2, step:  $4, guard: $6
   ]
-
-  Switch: [
-    o 'SWITCH Expression INDENT Whens OUTDENT',            -> new Switch $2, $4
-    o 'SWITCH Expression INDENT Whens ELSE Block OUTDENT', -> new Switch $2, $4, $6
-    o 'SWITCH INDENT Whens OUTDENT',                       -> new Switch null, $3
-    o 'SWITCH INDENT Whens ELSE Block OUTDENT',            -> new Switch null, $3, $5
-  ]
-
-  Whens: [
-    o 'When'
-    o 'Whens When',                             -> $1.concat $2
-  ]
-
-  # An individual **When** clause, with action.
-  When: [
-    o 'LEADING_WHEN SimpleArgs Block',            -> [[$2, $3]]
-    o 'LEADING_WHEN SimpleArgs Block TERMINATOR', -> [[$2, $3]]
+  
+  # Conditional expressions
+  Conditional: [
+    o 'Expression ? Expression : Expression', ->
+      new Conditional $1, $3, $5
   ]
 
   # The most basic form of *if* is a condition and an action. The following
   # if-related rules are broken up along these lines in order to avoid
   # ambiguity.
   IfBlock: [
-    o 'IF Expression Block',                    -> new If $2, $3, type: $1
-    o 'IfBlock ELSE IF Expression Block',       -> $1.addElse new If $4, $5, type: $3
+    o 'IF ( Expression ) ModuleInvocations',                -> new If $3, $5
+    o 'IfBlock ELSE IF ( Expression ) ModuleInvocations',       -> $1.addElse new If $5, $7
   ]
 
-  # The full complement of *if* expressions, including postfix one-liner
-  # *if* and *unless*.
+  # The full complement of *if* expressions
   If: [
     o 'IfBlock'
-    o 'IfBlock ELSE Block',                     -> $1.addElse $3
-    o 'Statement  POST_IF Expression',          -> new If $3, Block.wrap([$1]), type: $2, statement: true
-    o 'Expression POST_IF Expression',          -> new If $3, Block.wrap([$1]), type: $2, statement: true
+    o 'IfBlock ELSE ModuleInvocations',                     -> $1.addElse $3
   ]
 
   # Arithmetic and logical operators, working on one or more operands.
@@ -501,15 +307,7 @@ grammar =
     o 'UNARY Expression',                       -> new Op $1 , $2
     o '-     Expression',                      (-> new Op '-', $2), prec: 'UNARY'
     o '+     Expression',                      (-> new Op '+', $2), prec: 'UNARY'
-
-    o '-- SimpleAssignable',                    -> new Op '--', $2
-    o '++ SimpleAssignable',                    -> new Op '++', $2
-    o 'SimpleAssignable --',                    -> new Op '--', $1, null, true
-    o 'SimpleAssignable ++',                    -> new Op '++', $1, null, true
-
-    # [The existential operator](http://jashkenas.github.com/coffee-script/#existence).
-    o 'Expression ?',                           -> new Existence $1
-
+    
     o 'Expression +  Expression',               -> new Op '+' , $1, $3
     o 'Expression -  Expression',               -> new Op '-' , $1, $3
 
@@ -522,12 +320,6 @@ grammar =
         new Op($2.slice(1), $1, $3).invert()
       else
         new Op $2, $1, $3
-
-    o 'SimpleAssignable COMPOUND_ASSIGN
-       Expression',                             -> new Assign $1, $3, $2
-    o 'SimpleAssignable COMPOUND_ASSIGN
-       INDENT Expression OUTDENT',              -> new Assign $1, $4, $2
-    o 'SimpleAssignable EXTENDS Expression',    -> new Extends $1, $3
   ]
 
 
@@ -546,7 +338,6 @@ operators = [
   ['left',      '.', '?.', '::']
   ['left',      'CALL_START', 'CALL_END']
   ['nonassoc',  '++', '--']
-  ['left',      '?']
   ['right',     'UNARY']
   ['left',      'MATH']
   ['left',      '+', '-']
@@ -554,10 +345,11 @@ operators = [
   ['left',      'RELATION']
   ['left',      'COMPARE']
   ['left',      'LOGIC']
+  ['left',      '?']
   ['nonassoc',  'INDENT', 'OUTDENT']
-  ['right',     '=', ':', 'COMPOUND_ASSIGN', 'RETURN', 'THROW', 'EXTENDS']
+  ['right',     '=', 'COMPOUND_ASSIGN']
   ['right',     'FORIN', 'FOROF', 'BY', 'WHEN']
-  ['right',     'IF', 'ELSE', 'FOR', 'DO', 'WHILE', 'UNTIL', 'LOOP', 'SUPER', 'CLASS']
+  ['right',     'IF', 'ELSE', 'FOR', 'MODULE']
   ['right',     'POST_IF']
 ]
 

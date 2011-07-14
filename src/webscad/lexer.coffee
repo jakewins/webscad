@@ -53,11 +53,8 @@ exports.Lexer = class Lexer
            @heredocToken()    or
            @stringToken()     or
            @numberToken()     or
-           @regexToken()      or
-           @jsToken()         or
            @literalToken()
 
-    @closeIndentation()
     return @tokens
 
   # Tokenizers
@@ -116,8 +113,9 @@ exports.Lexer = class Lexer
         when '!'                                  then 'UNARY'
         when '==', '!='                           then 'COMPARE'
         when '&&', '||'                           then 'LOGIC'
-        when 'true', 'false', 'null', 'undefined' then 'BOOL'
-        when 'break', 'continue', 'debugger'      then 'STATEMENT'
+        when 'true', 'false', 'null', 'undef'     then 'BOOL'
+        when 'function'                           then 'FUNCTION'
+        when 'module'                             then 'MODULE'
         else  tag
 
     @token tag, id
@@ -167,62 +165,18 @@ exports.Lexer = class Lexer
   # Matches and consumes comments.
   commentToken: ->
     return 0 unless match = @chunk.match COMMENT
-    [comment, here] = match
-    if here
-      @token 'HERECOMMENT', @sanitizeHeredoc here,
-        herecomment: true, indent: Array(@indent + 1).join(' ')
+    [comment, block] = match
+    if block
+      @token 'COMMENT', @sanitizeBlockComment block,
+        blockcomment: true, indent: Array(@indent + 1).join(' ')
+      @token 'TERMINATOR', '\n'
+    else
+      @token 'COMMENT', comment.trim()[2..].trim()
       @token 'TERMINATOR', '\n'
     @line += count comment, '\n'
     comment.length
 
-  # Matches JavaScript interpolated directly into the source via backticks.
-  jsToken: ->
-    return 0 unless @chunk.charAt(0) is '`' and match = JSTOKEN.exec @chunk
-    @token 'JS', (script = match[0]).slice 1, -1
-    script.length
-
-  # Matches regular expression literals. Lexing regular expressions is difficult
-  # to distinguish from division, so we borrow some basic heuristics from
-  # JavaScript and Ruby.
-  regexToken: ->
-    return 0 if @chunk.charAt(0) isnt '/'
-    if match = HEREGEX.exec @chunk
-      length = @heregexToken match
-      @line += count match[0], '\n'
-      return length
-
-    prev = last @tokens
-    return 0 if prev and (prev[0] in (if prev.spaced then NOT_REGEX else NOT_SPACED_REGEX))
-    return 0 unless match = REGEX.exec @chunk
-    [regex] = match
-    @token 'REGEX', if regex is '//' then '/(?:)/' else regex
-    regex.length
-
-  # Matches multiline extended regular expressions.
-  heregexToken: (match) ->
-    [heregex, body, flags] = match
-    if 0 > body.indexOf '#{'
-      re = body.replace(HEREGEX_OMIT, '').replace(/\//g, '\\/')
-      @token 'REGEX', "/#{ re or '(?:)' }/#{flags}"
-      return heregex.length
-    @token 'IDENTIFIER', 'RegExp'
-    @tokens.push ['CALL_START', '(']
-    tokens = []
-    for [tag, value] in @interpolateString(body, regex: yes)
-      if tag is 'TOKENS'
-        tokens.push value...
-      else
-        continue unless value = value.replace HEREGEX_OMIT, ''
-        value = value.replace /\\/g, '\\\\'
-        tokens.push ['STRING', @makeString(value, '"', yes)]
-      tokens.push ['+', '+']
-    tokens.pop()
-    @tokens.push ['STRING', '""'], ['+', '+'] unless tokens[0]?[0] is 'STRING'
-    @tokens.push tokens...
-    @tokens.push [',', ','], ['STRING', '"' + flags + '"'] if flags
-    @token ')', ')'
-    heregex.length
-
+  
   # Matches newlines, indents, and outdents, and determines which is which.
   # If we can detect that the current line is continued onto the the next line,
   # then the newline is suppressed:
@@ -236,49 +190,7 @@ exports.Lexer = class Lexer
   lineToken: ->
     return 0 unless match = MULTI_DENT.exec @chunk
     indent = match[0]
-    @line += count indent, '\n'
-    prev = last @tokens, 1
-    size = indent.length - 1 - indent.lastIndexOf '\n'
-    noNewlines = @unfinished()
-    if size - @indebt is @indent
-      if noNewlines then @suppressNewlines() else @newlineToken()
-      return indent.length
-    if size > @indent
-      if noNewlines
-        @indebt = size - @indent
-        @suppressNewlines()
-        return indent.length
-      diff = size - @indent + @outdebt
-      @token 'INDENT', diff
-      @indents.push diff
-      @outdebt = @indebt = 0
-    else
-      @indebt = 0
-      @outdentToken @indent - size, noNewlines
-    @indent = size
     indent.length
-
-  # Record an outdent token or multiple tokens, if we happen to be moving back
-  # inwards past several recorded indents.
-  outdentToken: (moveOut, noNewlines, close) ->
-    while moveOut > 0
-      len = @indents.length - 1
-      if @indents[len] is undefined
-        moveOut = 0
-      else if @indents[len] is @outdebt
-        moveOut -= @outdebt
-        @outdebt = 0
-      else if @indents[len] < @outdebt
-        @outdebt -= @indents[len]
-        moveOut  -= @indents[len]
-      else
-        dent = @indents.pop() - @outdebt
-        moveOut -= dent
-        @outdebt = 0
-        @token 'OUTDENT', dent
-    @outdebt -= moveOut if dent
-    @token 'TERMINATOR', '\n' unless @tag() is 'TERMINATOR' or noNewlines
-    this
 
   # Matches and consumes non-meaningful whitespace. Tag the previous token
   # as being "spaced", because there are some cases where it makes a difference.
@@ -290,8 +202,9 @@ exports.Lexer = class Lexer
     if match then match[0].length else 0
 
   # Generate a newline token. Consecutive newlines get merged together.
-  newlineToken: ->
-    @token 'TERMINATOR', '\n' unless @tag() is 'TERMINATOR'
+  terminatorToken: ->
+    if @tag() isnt 'TERMINATOR' and @tokens.length > 0
+      @token 'TERMINATOR', '\n'
     this
 
   # Use a `\` at a line-ending to suppress the newline.
@@ -315,47 +228,57 @@ exports.Lexer = class Lexer
     prev = last @tokens
     if value is '=' and prev
       @assignmentError() if not prev[1].reserved and prev[1] in JS_FORBIDDEN
-      if prev[1] in ['||', '&&']
-        prev[0] = 'COMPOUND_ASSIGN'
-        prev[1] += '='
-        return value.length
-    if      value is ';'             then tag = 'TERMINATOR'
+        
+    if value in [';','\n']
+      @terminatorToken()
+      return 1
     else if value in MATH            then tag = 'MATH'
     else if value in COMPARE         then tag = 'COMPARE'
-    else if value in COMPOUND_ASSIGN then tag = 'COMPOUND_ASSIGN'
     else if value in UNARY           then tag = 'UNARY'
     else if value in SHIFT           then tag = 'SHIFT'
-    else if value in LOGIC or value is '?' and prev?.spaced then tag = 'LOGIC'
+    else if value in LOGIC           then tag = 'LOGIC'
     else if prev and not prev.spaced
-      if value is '(' and prev[0] in CALLABLE
-        prev[0] = 'FUNC_EXIST' if prev[0] is '?'
-        tag = 'CALL_START'
+      if value is '('
+        if @tokens.length > 1
+          twoTagsBack = @tokens[@tokens.length-2][0]
+        if twoTagsBack in ['FUNCTION','MODULE']
+          tag = 'PARAM_START'
+        else if prev[0] in CALLABLE
+          tag = 'CALL_START'
+      if value is ')'
+        tok = @backtrackToOpeningTokenFor('(',')')
+        if tok[0] is 'CALL_START' then tag = 'CALL_END'
+        else if tok[0] is 'PARAM_START' then tag = 'PARAM_END'
+        else tag = ')'
       else if value is '[' and prev[0] in INDEXABLE
         tag = 'INDEX_START'
-        switch prev[0]
-          when '?'  then prev[0] = 'INDEX_SOAK'
-          when '::' then prev[0] = 'INDEX_PROTO'
+      else if value is ']'
+        tok = @backtrackToOpeningTokenFor('[',']')
+        if tok[0] is 'INDEX_START' then tag = 'INDEX_END'
+        else tag = ']'
     @token tag, value
     value.length
+    
+  backtrackToOpeningTokenFor : (openingSign, closingSign) ->
+    stack = []
+    i = @tokens.length
+    while tok = @tokens[--i]
+      switch tok[1]
+        when closingSign
+          stack.push tok
+        when openingSign
+          if stack.length then stack.pop()
+          else
+            return tok
+    return null
 
   # Token Manipulators
   # ------------------
 
-  # Sanitize a heredoc or herecomment by
-  # erasing all external indentation on the left-hand side.
-  sanitizeHeredoc: (doc, options) ->
-    {indent, herecomment} = options
-    if herecomment
-      if HEREDOC_ILLEGAL.test doc
-        throw new Error "block comment cannot contain \"*/\", starting on line #{@line + 1}"
-      return doc if doc.indexOf('\n') <= 0
-    else
-      while match = HEREDOC_INDENT.exec doc
-        attempt = match[1]
-        indent = attempt if indent is null or 0 < attempt.length < indent.length
-    doc = doc.replace /// \n #{indent} ///g, '\n' if indent
-    doc = doc.replace /^\n/, '' unless herecomment
-    doc
+  # 
+  sanitizeBlockComment: (doc, options) ->
+    doc = doc.replace /// (\n\s|^)\* ///g, '\n'
+    doc.trim()
 
   # A source of ambiguity in our grammar used to be parameter lists in function
   # definitions versus argument lists in function calls. Walk backwards, tagging
@@ -377,10 +300,6 @@ exports.Lexer = class Lexer
             return this
           else return this
     this
-
-  # Close up all remaining open blocks at the end of the file.
-  closeIndentation: ->
-    @outdentToken @indent
 
   # The error for when you try to use a forbidden word in JavaScript as
   # an identifier.
@@ -513,7 +432,7 @@ JS_KEYWORDS = [
 ]
 
 # CoffeeScript-only keywords.
-COFFEE_KEYWORDS = ['undefined', 'then', 'unless', 'until', 'loop', 'of', 'by', 'when']
+COFFEE_KEYWORDS = ['undef']
 
 COFFEE_ALIAS_MAP =
   and  : '&&'
@@ -529,14 +448,8 @@ COFFEE_ALIAS_MAP =
 COFFEE_ALIASES  = (key for key of COFFEE_ALIAS_MAP)
 COFFEE_KEYWORDS = COFFEE_KEYWORDS.concat COFFEE_ALIASES
 
-# The list of keywords that are reserved by JavaScript, but not used, or are
-# used by CoffeeScript internally. We throw an error when these are encountered,
-# to avoid having a JavaScript error at runtime.
-RESERVED = [
-  'case', 'default', 'function', 'var', 'void', 'with'
-  'const', 'let', 'enum', 'export', 'import', 'native'
-  '__hasProp', '__extends', '__slice', '__bind', '__indexOf'
-]
+# List of words that can never be used.
+RESERVED = []
 
 # The superset of both JavaScript keywords and reserved words, none of which may
 # be used as identifiers or properties.
@@ -569,15 +482,19 @@ OPERATOR   = /// ^ (
 
 WHITESPACE = /^[^\n\S]+/
 
-COMMENT    = /^###([^#][\s\S]*?)(?:###[^\n\S]*|(?:###)?$)|^(?:\s*#(?!##[^#]).*)+/
+COMMENT    = /// 
+  ^ /\*                         # Block comment (/* Blah */)
+   ( (?: (?!\*/) [\n\s\S] )* )  # Block comment content
+   (?:\*/[^\n\S]* | (?:\*/)?$ ) # End block comment
+  |                             # OR
+  ^ (?:\s* // .*)+              # Line comment (// Blah)
+///
 
-CODE       = /^[-=]>/
+CODE       = /^\)\s+=/
 
 MULTI_DENT = /^(?:\n[^\n\S]*)+/
 
 SIMPLESTR  = /^'[^\\']*(?:\\.[^\\']*)*'/
-
-JSTOKEN    = /^`[^\\`]*(?:\\.[^\\`]*)*`/
 
 # Regex-matching-regexes.
 REGEX = /// ^
@@ -617,11 +534,6 @@ NO_NEWLINE      = /// ^ (?:            # non-capturing group
   delete | typeof | instanceof
 ) $ ///
 
-# Compound assignment tokens.
-COMPOUND_ASSIGN = [
-  '-=', '+=', '/=', '*=', '%=', '||=', '&&=', '?=', '<<=', '>>=', '>>>=', '&=', '^=', '|='
-]
-
 # Unary tokens.
 UNARY   = ['!', '~', 'NEW', 'TYPEOF', 'DELETE', 'DO']
 
@@ -641,7 +553,7 @@ MATH    = ['*', '/', '%']
 RELATION = ['IN', 'OF', 'INSTANCEOF']
 
 # Boolean tokens.
-BOOL = ['TRUE', 'FALSE', 'NULL', 'UNDEFINED']
+BOOL = ['TRUE', 'FALSE', 'NULL', 'UNDEF']
 
 # Tokens which a regular expression will never immediately follow, but which
 # a division operator might.
@@ -658,7 +570,7 @@ NOT_SPACED_REGEX = NOT_REGEX.concat ')', '}', 'THIS', 'IDENTIFIER', 'STRING'
 # Tokens which could legitimately be invoked or indexed. A opening
 # parentheses or bracket following these tokens will be recorded as the start
 # of a function invocation or indexing operation.
-CALLABLE  = ['IDENTIFIER', 'STRING', 'REGEX', ')', ']', '}', '?', '::', '@', 'THIS', 'SUPER']
+CALLABLE  = ['IDENTIFIER', 'STRING', 'REGEX', ')', ']', '}', '?', '::', '@', 'THIS', 'SUPER','CALL_END','INDEX_END']
 INDEXABLE = CALLABLE.concat 'NUMBER', 'BOOL'
 
 # Tokens that, when immediately preceding a `WHEN`, indicate that the `WHEN`
