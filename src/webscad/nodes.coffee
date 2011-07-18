@@ -477,6 +477,24 @@ exports.Op = class Op extends Base
   toString: (idt) ->
     super idt, @constructor.name + ' ' + @operator
 
+#### Use
+
+exports.Use = class Use extends Base
+
+  constructor: (@path) ->
+
+  toString: (idt = '', name = @constructor.name) ->
+    super(idt,name) + ' "' + @path + '"'
+
+#### Include
+
+exports.Include = class Include extends Base
+
+  constructor: (@path) ->
+
+  toString: (idt = '', name = @constructor.name) ->
+    super(idt,name) + ' "' + @path + '"'
+
 #### Conditional
 
 # 1>1 ? true : false

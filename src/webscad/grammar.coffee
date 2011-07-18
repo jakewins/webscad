@@ -85,6 +85,7 @@ grammar =
     o 'Code'
     o 'If'
     o 'Comment'
+    o 'Include'
   ]
 
   # Expressions
@@ -162,6 +163,11 @@ grammar =
   
   MemberAccess: [
     o '.  Identifier',                          -> $2
+  ]
+
+  Include: [
+    o 'INCLUDE',                                -> new Include $1
+    o 'USE',                                    -> new Use $1
   ]
 
   Module: [
