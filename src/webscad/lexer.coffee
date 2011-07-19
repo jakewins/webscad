@@ -173,7 +173,6 @@ exports.Lexer = class Lexer
       @terminatorToken()
       return 1
     else if value in COMPARE         then tag = 'COMPARE'
-    else if value in SHIFT           then tag = 'SHIFT'
     else if value in LOGIC           then tag = 'LOGIC'
     else if prev and not prev.spaced
       if value is '('
@@ -315,13 +314,9 @@ NUMBER     = ///
 ///i
 
 OPERATOR   = /// ^ (
-  ?: [-=]>             # function
-   | [-+*/%<>&|^!?=]=  # compound assign / compare
-   | >>>=?             # zero-fill right shift
+  ?: [-+*/%<>&|^!?=]=  # compound assign / compare
    | ([-+:])\1         # doubles
    | ([&|<>])\2=?      # logic / shift
-   | \?\.              # soak access
-   | \.{2,3}           # range or splat
 ) ///
 
 WHITESPACE = /^[^\n\S]+/
@@ -354,10 +349,7 @@ NO_NEWLINE      = /// ^ (?:            # non-capturing group
 ) $ ///
 
 # Logical tokens.
-LOGIC   = ['&&', '||', '&', '|', '^']
-
-# Bit-shifting tokens.
-SHIFT   = ['<<', '>>', '>>>']
+LOGIC   = ['&&', '||']
 
 # Comparison tokens.
 COMPARE = ['==', '!=', '<', '>', '<=', '>=']
@@ -368,10 +360,6 @@ BOOL = ['TRUE', 'FALSE', 'UNDEF']
 # Tokens which could legitimately be invoked or indexed. A opening
 # parentheses or bracket following these tokens will be recorded as the start
 # of a function invocation or indexing operation.
-CALLABLE  = ['IDENTIFIER', 'STRING', 'REGEX', ')', ']', '}', '?', '::', '@', 'THIS', 'SUPER','CALL_END','INDEX_END']
+CALLABLE  = ['IDENTIFIER', 'STRING', ')', ']', 'CALL_END','INDEX_END']
 INDEXABLE = CALLABLE.concat 'NUMBER', 'BOOL'
 
-# Tokens that, when immediately preceding a `WHEN`, indicate that the `WHEN`
-# occurs at the start of a line. We disambiguate these from trailing whens to
-# avoid an ambiguity in the grammar.
-LINE_BREAK = ['TERMINATOR']

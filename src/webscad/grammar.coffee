@@ -243,53 +243,6 @@ grammar =
     o 'Expression'
     o 'Assign'
   ]
-
-  # Array, object, and range comprehensions, at the most generic level.
-  # Comprehensions can either be normal, with a block of expressions to execute,
-  # or postfix, with a single expression.
-  For: [
-    o 'Statement  ForBody',                     -> new For $1, $2
-    o 'Expression ForBody',                     -> new For $1, $2
-    o 'ForBody    Block',                       -> new For $2, $1
-  ]
-
-  ForBody: [
-    o 'FOR Range',                              -> source: new Value($2)
-    o 'ForStart ForSource',                     -> $2.own = $1.own; $2.name = $1[0]; $2.index = $1[1]; $2
-  ]
-
-  ForStart: [
-    o 'FOR ForVariables',                       -> $2
-    o 'FOR OWN ForVariables',                   -> $3.own = yes; $3
-  ]
-
-  # An array of all accepted values for a variable inside the loop.
-  # This enables support for pattern matching.
-  ForValue: [
-    o 'Identifier'
-    o 'Vector',                                  -> new Value $1
-  ]
-
-  # An array or range comprehension has variables for the current element
-  # and (optional) reference to the current index. Or, *key, value*, in the case
-  # of object comprehensions.
-  ForVariables: [
-    o 'ForValue',                               -> [$1]
-    o 'ForValue , ForValue',                    -> [$1, $3]
-  ]
-
-  # The source of a comprehension is an array or object with an optional guard
-  # clause. If it's an array comprehension, you can also choose to step through
-  # in fixed-size increments.
-  ForSource: [
-    o 'FORIN Expression',                               -> source: $2
-    o 'FOROF Expression',                               -> source: $2, object: yes
-    o 'FORIN Expression WHEN Expression',               -> source: $2, guard: $4
-    o 'FOROF Expression WHEN Expression',               -> source: $2, guard: $4, object: yes
-    o 'FORIN Expression BY Expression',                 -> source: $2, step:  $4
-    o 'FORIN Expression WHEN Expression BY Expression', -> source: $2, guard: $4, step: $6
-    o 'FORIN Expression BY Expression WHEN Expression', -> source: $2, step:  $4, guard: $6
-  ]
   
   # Conditional expressions
   Conditional: [
@@ -329,11 +282,6 @@ grammar =
     o 'Expression %  Expression',               -> new Op '%' , $1, $3
     o 'Expression COMPARE  Expression',         -> new Op $2, $1, $3
     o 'Expression LOGIC    Expression',         -> new Op $2, $1, $3
-    o 'Expression RELATION Expression',         ->
-      if $2.charAt(0) is '!'
-        new Op($2.slice(1), $1, $3).invert()
-      else
-        new Op $2, $1, $3
   ]
 
 
@@ -355,11 +303,9 @@ operators = [
   ['right',     '!']
   ['left',      '*', '/', '%']
   ['left',      '+', '-']
-  ['left',      'RELATION']
   ['left',      'COMPARE']
   ['left',      'LOGIC']
   ['left',      '?']
-  ['nonassoc',  'INDENT', 'OUTDENT']
   ['right',     '=', 'COMPOUND_ASSIGN']
   ['right',     'IF', 'ELSE', 'MODULE']
   ['right',     'POST_IF']
