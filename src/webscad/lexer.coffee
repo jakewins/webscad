@@ -76,12 +76,9 @@ exports.Lexer = class Lexer
 
     if id in KEYWORDS
       tag = id.toUpperCase()
-      if tag in UNARY
-        tag = 'UNARY'
 
     unless forcedIdentifier
       tag = switch id
-        when '!'                                  then 'UNARY'
         when '==', '!='                           then 'COMPARE'
         when '&&', '||'                           then 'LOGIC'
         when 'true', 'false', 'null', 'undef'     then 'BOOL'
@@ -175,9 +172,7 @@ exports.Lexer = class Lexer
     if value in [';','\n']
       @terminatorToken()
       return 1
-    else if value in MATH            then tag = 'MATH'
     else if value in COMPARE         then tag = 'COMPARE'
-    else if value in UNARY           then tag = 'UNARY'
     else if value in SHIFT           then tag = 'SHIFT'
     else if value in LOGIC           then tag = 'LOGIC'
     else if prev and not prev.spaced
@@ -348,7 +343,7 @@ MULTILINER      = /\n/g
 
 ASSIGNED        = /^\s*@?([$A-Za-z_][$\w\x7f-\uffff]*|['"].*['"])[^\n\S]*?[:=][^:=>]/
 
-LINE_CONTINUER  = /// ^ \s* (?: , | \??\.(?![.\d]) | :: ) ///
+LINE_CONTINUER  = /// ^ \s* (?: , | \??\.(?![.\d]) ) ///
 
 TRAILING_SPACES = /\s+$/
 
@@ -358,9 +353,6 @@ NO_NEWLINE      = /// ^ (?:            # non-capturing group
   delete | typeof | instanceof
 ) $ ///
 
-# Unary tokens.
-UNARY   = ['!']
-
 # Logical tokens.
 LOGIC   = ['&&', '||', '&', '|', '^']
 
@@ -369,9 +361,6 @@ SHIFT   = ['<<', '>>', '>>>']
 
 # Comparison tokens.
 COMPARE = ['==', '!=', '<', '>', '<=', '>=']
-
-# Mathematical tokens.
-MATH    = ['*', '/', '%']
 
 # Boolean tokens.
 BOOL = ['TRUE', 'FALSE', 'UNDEF']

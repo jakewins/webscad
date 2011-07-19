@@ -1,8 +1,6 @@
-{Lexer} = require "../src/webscad/lexer"
 
-lexer = new Lexer
 {Block, NumberValue, StringValue, BooleanValue, VectorValue, RangeValue, UndefinedValue, Identifier, Assign, Code,
-Op, Module, ModuleCall, ModuleCallList} = require "../lib/webscad/nodes"
+Op, Module, ModuleCall, ModuleCallList} = require "../../lib/webscad/nodes"
 {assertParsing, produces} = require "./parseutils"
 
 test 'parses empty noparam module', -> 
@@ -107,3 +105,42 @@ test 'parses assignment in arguments to module calls', ->
     )
   ]
   
+test 'parses root modifier', ->
+  assertParsing '''
+! mymodule();
+''', produces [
+    new ModuleCall(
+      new Identifier('mymodule'),
+      [],[],
+      {isRoot:true})
+  ]
+  
+test 'parses highlight modifier', ->
+  assertParsing '''
+# mymodule();
+''', produces [
+    new ModuleCall(
+      new Identifier('mymodule'),
+      [],[],
+      {isHighlighted:true})
+  ]
+  
+test 'parses background modifier', ->
+  assertParsing '''
+% mymodule();
+''', produces [
+    new ModuleCall(
+      new Identifier('mymodule'),
+      [],[],
+      {isInBackground:true})
+  ]
+  
+test 'parses disable modifier', ->
+  assertParsing '''
+* mymodule();
+''', produces [
+    new ModuleCall(
+      new Identifier('mymodule'),
+      [],[],
+      {isIgnored:true})
+  ]

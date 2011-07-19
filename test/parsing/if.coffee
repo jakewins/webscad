@@ -1,6 +1,6 @@
 
 {Block, NumberValue, StringValue, BooleanValue, VectorValue, RangeValue, UndefinedValue, IndexAccess, Access, Identifier,
-FunctionCall, ModuleCall, MemberAccess, If, Op} = require "../lib/webscad/nodes"
+FunctionCall, ModuleCall, MemberAccess, If, Op} = require "../../lib/webscad/nodes"
 {assertParsing, produces} = require "./parseutils"
 
 test 'parses empty if block', -> 

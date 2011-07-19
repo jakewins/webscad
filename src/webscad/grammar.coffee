@@ -178,6 +178,14 @@ grammar =
   # Module invocation
   ModuleInvocation: [
     o 'Identifier Arguments',                        -> new ModuleCall $1, $2
+    o '! ModuleInvocation', ->
+      $2.setIsRoot(true)
+    o '# ModuleInvocation', ->
+      $2.setIsHighlighted(true)
+    o '% ModuleInvocation', ->
+      $2.setIsInBackground(true)
+    o '* ModuleInvocation', ->
+      $2.setIsIgnored(true)
     o 'Identifier Arguments ModuleInvocations',   -> new ModuleCall $1, $2, $3
   ]
   
@@ -310,15 +318,15 @@ grammar =
   # -type rule, but in order to make the precedence binding possible, separate
   # rules are necessary.
   Operation: [
-    o 'UNARY Expression',                       -> new Op $1 , $2
-    o '-     Expression',                      (-> new Op '-', $2), prec: 'UNARY'
-    o '+     Expression',                      (-> new Op '+', $2), prec: 'UNARY'
+    o '! Expression',                           -> new Op '!', $2
+    o '- Expression',                          (-> new Op '-', $2)
+    o '+ Expression',                          (-> new Op '+', $2)
     
     o 'Expression +  Expression',               -> new Op '+' , $1, $3
     o 'Expression -  Expression',               -> new Op '-' , $1, $3
-
-    o 'Expression MATH     Expression',         -> new Op $2, $1, $3
-    o 'Expression SHIFT    Expression',         -> new Op $2, $1, $3
+    o 'Expression *  Expression',               -> new Op '*' , $1, $3
+    o 'Expression /  Expression',               -> new Op '/' , $1, $3
+    o 'Expression %  Expression',               -> new Op '%' , $1, $3
     o 'Expression COMPARE  Expression',         -> new Op $2, $1, $3
     o 'Expression LOGIC    Expression',         -> new Op $2, $1, $3
     o 'Expression RELATION Expression',         ->
@@ -341,21 +349,19 @@ grammar =
 #
 #     (2 + 3) * 4
 operators = [
-  ['left',      '.', '?.', '::']
+  ['left',      '.']
   ['left',      'CALL_START', 'CALL_END']
   ['nonassoc',  '++', '--']
-  ['right',     'UNARY']
-  ['left',      'MATH']
+  ['right',     '!']
+  ['left',      '*', '/', '%']
   ['left',      '+', '-']
-  ['left',      'SHIFT']
   ['left',      'RELATION']
   ['left',      'COMPARE']
   ['left',      'LOGIC']
   ['left',      '?']
   ['nonassoc',  'INDENT', 'OUTDENT']
   ['right',     '=', 'COMPOUND_ASSIGN']
-  ['right',     'FORIN', 'FOROF', 'BY', 'WHEN']
-  ['right',     'IF', 'ELSE', 'FOR', 'MODULE']
+  ['right',     'IF', 'ELSE', 'MODULE']
   ['right',     'POST_IF']
 ]
 

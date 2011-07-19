@@ -1,8 +1,8 @@
-{Lexer} = require "../src/webscad/lexer"
+{Lexer} = require "../../src/webscad/lexer"
 
 lexer = new Lexer
 {Block, NumberValue, StringValue, BooleanValue, VectorValue, RangeValue, UndefinedValue, Identifier, Assign, Code,
-Op, Module, ModuleCall, ModuleCallList, Comment} = require "../lib/webscad/nodes"
+Op, Module, ModuleCall, ModuleCallList, Comment} = require "../../lib/webscad/nodes"
 {assertParsing, produces} = require "./parseutils"
   
 test 'parses lone line comment', -> 

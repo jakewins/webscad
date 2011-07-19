@@ -1,5 +1,5 @@
 
-{Block, NumberValue, StringValue, BooleanValue, VectorValue, RangeValue, UndefinedValue, Identifier, Assign, FunctionCall} = require "../lib/webscad/nodes"
+{Block, NumberValue, StringValue, BooleanValue, VectorValue, RangeValue, UndefinedValue, Identifier, Assign, FunctionCall} = require "../../lib/webscad/nodes"
 {assertParsing, produces} = require "./parseutils"
 
 test 'parses basic assignment', -> 

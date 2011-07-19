@@ -83,6 +83,24 @@ task 'doc:source', 'rebuild the internal documentation', ->
   exec 'docco src/*.coffee && cp -rf docs documentation && rm -r docs', (err) ->
     throw err if err
 
+walk = (dir, done) ->
+  results = []
+  fs.readdir dir, (err, list) ->
+    if err or !list
+      return done(results)
+    next = (i) ->
+      f = list[i]
+      if !f
+        return done(results);
+      fs.stat dir + '/' + f, (err, stat) ->
+        if stat && stat.isDirectory()
+          walk dir + '/' + f, (r) ->
+            results = results.concat r
+            next ++i
+        else
+          results.push dir + '/' + f
+          next ++i
+    next 0
 
 # Run the test suite.
 runTests = (CoffeeScript) ->
@@ -151,14 +169,13 @@ runTests = (CoffeeScript) ->
       console.log "  #{error.source}" if error.source
 
   # Run every test in the `test` folder, recording failures.
-  fs.readdir 'test', (err, files) ->
+  walk 'test', (files) ->
     files.forEach (file) ->
-      return unless file.match(/\.coffee$/i)
-      filename = path.join 'test', file
-      fs.readFile filename, (err, code) ->
-        currentFile = filename
+      return unless file.match /\.coffee$/i
+      fs.readFile file, (err, code) ->
+        currentFile = file
         try
-          CoffeeScript.run code.toString(), {filename}
+          CoffeeScript.run code.toString(), {filename:file}
         catch e
           failures.push file: currentFile, error: e
 

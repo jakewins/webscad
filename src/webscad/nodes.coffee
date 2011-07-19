@@ -49,7 +49,6 @@ exports.Base = class Base
     null
 
   # `toString` representation of the node, for inspecting the parse tree.
-  # This is what `coffee --nodes` prints out.
   toString: (idt = '', name = @constructor.name) ->
     tree = '\n' + idt + name
     @eachChild (node) -> tree += node.toString idt + TAB
@@ -167,8 +166,6 @@ exports.Literal = class Literal extends Base
 
 #### Return
 
-# A `return` is a *pureStatement* -- wrapping it in a closure wouldn't
-# make sense.
 exports.Return = class Return extends Base
   constructor: (expr) ->
     @expression = expr if expr and not expr.unwrap().isUndefined
@@ -323,9 +320,29 @@ exports.FunctionCall = class FunctionCall extends Base
 # invocation in that it is a statement, and can have
 # syntax like: mymodule(arg1,arg2) { childModule(); otherModule(); }
 exports.ModuleCall = class ModuleCall extends Base
-  constructor: (@name, @args = [], @subModules=[]) ->
+
+  constructor: (@name, @args = [], @subModules=[], opts={}) ->
+    @isRoot = opts.isRoot or false
+    @isHighlighted = opts.isHighlighted or false
+    @isInBackground = opts.isInBackground or false
+    @isIgnored = opts.isIgnored or false
     
   children: ['name', 'args', 'subModules']
+  
+  setIsRoot : (@isRoot) -> this
+  setIsHighlighted : (@isHighlighted) -> this
+  setIsInBackground : (@isInBackground) -> this
+  setIsIgnored : (@isIgnored) -> this
+  
+  toString: (idt = '', name = @constructor.name) ->
+    modifiers = []
+    for m in ['isRoot','isHighlighted','isInBackground','isIgnored']
+      if this[m]
+        modifiers.push m[2..]
+    modifiers = "(" + (modifiers.join ',') + ")"
+    tree = '\n' + idt + name + modifiers
+    @eachChild (node) -> tree += node.toString idt + TAB
+    tree
 
 #### MemberAccess
 
@@ -407,72 +424,13 @@ exports.Code = class Code extends Base
 # CoffeeScript operations into their JavaScript equivalents.
 exports.Op = class Op extends Base
   constructor: (op, first, second, flip ) ->
-    return new In first, second if op is 'in'
-    if op is 'do'
-      call = new Call first, first.params or []
-      call.do = yes
-      return call
-    if op is 'new'
-      return first.newInstance() if first instanceof Call and not first.do
-      first = new Parens first   if first instanceof Code and first.bound or first.do
-    @operator = CONVERSIONS[op] or op
+    @operator = op
     @first    = first
     @second   = second
     @flip     = !!flip
     return this
 
-  # The map of conversions from CoffeeScript to JavaScript symbols.
-  CONVERSIONS =
-    '==': '==='
-    '!=': '!=='
-    'of': 'in'
-
-  # The map of invertible operators.
-  INVERSIONS =
-    '!==': '==='
-    '===': '!=='
-
   children: ['first', 'second']
-
-  isSimpleNumber: NO
-
-  isUnary: ->
-    not @second
-
-  isComplex: ->
-    not (@isUnary() and (@operator in ['+', '-'])) or @first.isComplex()
-
-  # Am I capable of
-  # [Python-style comparison chaining](http://docs.python.org/reference/expressions.html#notin)?
-  isChainable: ->
-    @operator in ['<', '>', '>=', '<=', '===', '!==']
-
-  invert: ->
-    if @isChainable() and @first.isChainable()
-      allInvertable = yes
-      curr = this
-      while curr and curr.operator
-        allInvertable and= (curr.operator of INVERSIONS)
-        curr = curr.first
-      return new Parens(this).invert() unless allInvertable
-      curr = this
-      while curr and curr.operator
-        curr.invert = !curr.invert
-        curr.operator = INVERSIONS[curr.operator]
-        curr = curr.first
-      this
-    else if op = INVERSIONS[@operator]
-      @operator = op
-      if @first.unwrap() instanceof Op
-        @first.invert()
-      this
-    else if @second
-      new Parens(this).invert()
-    else if @operator is '!' and (fst = @first.unwrap()) instanceof Op and
-                                  fst.operator in ['!', 'in', 'instanceof']
-      fst
-    else
-      new Op '!', this
 
   toString: (idt) ->
     super idt, @constructor.name + ' ' + @operator
