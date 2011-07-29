@@ -52,7 +52,7 @@ task 'build:parser', 'rebuild the Jison parser (run build first)', ->
 
 task 'build:browser', 'rebuild the merged script for inclusion in the browser', ->
   code = ''
-  for name in ['helpers', 'rewriter', 'lexer', 'parser', 'scope', 'nodes', 'coffee-script', 'browser']
+  for name in ['webscad/helpers', 'webscad/lexer', 'webscad/parser', 'webscad/nodes', 'webscad/scad']
     code += """
       require['./#{name}'] = new function() {
         var exports = this;
@@ -60,16 +60,16 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
       };
     """
   code = """
-    this.CoffeeScript = function() {
+    this.WebScad = function() {
       function require(path){ return require[path]; }
       #{code}
-      return require['./coffee-script']
+      return require['./webscad/scad']
     }()
   """
   unless process.env.MINIFY is 'false'
     {parser, uglify} = require 'uglify-js'
     code = uglify.gen_code uglify.ast_squeeze uglify.ast_mangle parser.parse code
-  fs.writeFileSync 'extras/coffee-script.js', header + '\n' + code
+  fs.writeFileSync 'extras/webscad.js', header + '\n' + code
   console.log "built ... running browser tests:"
   invoke 'test:browser'
 
@@ -185,8 +185,9 @@ task 'test', 'run the full test suite', ->
 
 
 task 'test:browser', 'run the test suite against the merged browser script', ->
-  source = fs.readFileSync 'extras/coffee-script.js', 'utf-8'
+  source = fs.readFileSync 'extras/webscad.js', 'utf-8'
   result = {}
   global.testingBrowser = yes
-  (-> eval source).call result
-  runTests result.CoffeeScript
+  console.log "Browser tests not implemented."
+  #(-> eval source).call result
+  #runTests result.CoffeeScript

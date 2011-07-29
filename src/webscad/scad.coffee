@@ -13,10 +13,34 @@ parser.lexer =
   upcomingInput: ->
     ""
     
+exports.Scad = class Scad
+  
+  setFileLoader : (@fileLoader) ->
+    # Empty
+    
+  load : (path) ->
+    ast = parse(@fileLoader(path))
+    
+    ast.replaceIncludes (path) =>
+      @load path
+      
+
+exports.Evaluator = class Evaluator
+  
+  constructor : (@three) ->
+    # pass
+  
+  evaluate : (ast) ->
+    vars = {}
+    modules = {}
+    for st in ast.statements
+      if st instanceof Module
+        modules[st.name] = st
+    
 # Parse a string of SCAD code or an array of lexed tokens, and
 # return the AST. You can then compile it by calling `.compile()` on the root,
 # or traverse it by using `.traverse()` with a callback.
-exports.parse = (source, options) ->
+exports.parse = parse = (source, options) ->
   if typeof source is 'string'
     parser.parse lexer.tokenize source, options
   else

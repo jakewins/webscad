@@ -134,6 +134,33 @@ exports.Block = class Block extends Base
   @wrap: (nodes) ->
     return nodes[0] if nodes.length is 1 and nodes[0] instanceof Block
     new Block nodes
+    
+  replaceIncludes: ( load, traverseChildren = true ) ->
+    for position in [0..@statements.length]
+      statement = @statements[position]
+      if statement instanceof Include or statement instanceof Use
+        loaded = load(statement.path)
+        
+        if statement instanceof Include
+          loaded = loaded.statements
+        else
+          loaded = loaded.getModuleDefinitions()
+        args = [position, 1].concat loaded
+        Array.prototype.splice.apply(@statements, args)
+      
+        
+    @traverseChildren yes, (node) ->
+      if node instanceof Block
+        node.replaceIncludes(load, false) 
+    this
+    
+  getModuleDefinitions: ->
+    modules = []
+    @eachChild (node) ->
+      if node instanceof Module
+        modules.push node
+    modules
+    
 
 #### Literal
 
@@ -381,11 +408,10 @@ exports.Range = class Range extends Base
 #### Module
 
 exports.Module = class Module extends Base
-  constructor: (@variable, @body = new Block) ->
-    @boundFuncs = []
-    @body.classBody = yes
+  constructor: (@name, @args, @body = new Block) ->
+    # no-op
 
-  children: ['variable', 'body']
+  children: ['name', 'args', 'body']
 
 #### Assign
 
