@@ -54,7 +54,7 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
   code = ''
   for name in ['webscad/helpers', 'webscad/lexer', 'webscad/parser', 'webscad/nodes', 'webscad/scad']
     code += """
-      require['./#{name}'] = new function() {
+      require['#{name}'] = new function() {
         var exports = this;
         #{fs.readFileSync "lib/#{name}.js"}
       };

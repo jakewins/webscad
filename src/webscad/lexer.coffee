@@ -8,7 +8,7 @@
 # Which is a format that can be fed directly into [Jison](http://github.com/zaach/jison).
 
 # Import the helpers we need.
-{count, starts, compact, last} = require './helpers'
+{count, starts, compact, last} = require 'webscad/helpers'
 
 # The Lexer Class
 # ---------------

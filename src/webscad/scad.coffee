@@ -1,5 +1,5 @@
-{Lexer} = require "./lexer"
-{parser} = require "./parser"
+{Lexer} = require "webscad/lexer"
+{parser} = require "webscad/parser"
 
 lexer = new Lexer
 
@@ -27,12 +27,12 @@ exports.Scad = class Scad
 
 exports.Evaluator = class Evaluator
   
-  constructor : (@three) ->
+  constructor : (@render) ->
     # pass
   
-  evaluate : (ast) ->
-    vars = {}
-    modules = {}
+  evaluate : (ast, ctx={}) ->
+    vars = ctx.vars or {}
+    modules = ctx.modules or {}
     for st in ast.statements
       if st instanceof Module
         modules[st.name] = st
@@ -46,4 +46,4 @@ exports.parse = parse = (source, options) ->
   else
     parser.parse source
     
-parser.yy = require './nodes'
+parser.yy = require 'webscad/nodes'

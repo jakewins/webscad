@@ -3,10 +3,8 @@
 # but some are created by other nodes as a method of code generation. To convert
 # the syntax tree into a string of JavaScript code, call `compile()` on the root.
 
-{Scope} = require './scope'
-
 # Import the helpers we plan to use.
-{compact, flatten, extend, merge, del, starts, ends, last} = require './helpers'
+{compact, flatten, extend, merge, del, starts, ends, last} = require 'webscad/helpers'
 
 exports.extend = extend  # for parser
 
