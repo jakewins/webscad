@@ -52,11 +52,11 @@ task 'build:parser', 'rebuild the Jison parser (run build first)', ->
 
 task 'build:browser', 'rebuild the merged script for inclusion in the browser', ->
   code = ''
-  for name in ['webscad/helpers', 'webscad/lexer', 'webscad/parser', 'webscad/nodes', 'webscad/scad']
+  for name in ['helpers', 'lexer', 'parser', 'nodes', 'scad']
     code += """
-      require['#{name}'] = new function() {
+      require['./#{name}'] = new function() {
         var exports = this;
-        #{fs.readFileSync "lib/#{name}.js"}
+        #{fs.readFileSync "lib/webscad/#{name}.js"}
       };
     """
   code = """

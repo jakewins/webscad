@@ -4,7 +4,7 @@
 # the syntax tree into a string of JavaScript code, call `compile()` on the root.
 
 # Import the helpers we plan to use.
-{compact, flatten, extend, merge, del, starts, ends, last} = require 'webscad/helpers'
+{compact, flatten, extend, merge, del, starts, ends, last} = require './helpers'
 
 exports.extend = extend  # for parser
 

@@ -1,5 +1,5 @@
-{Lexer} = require "webscad/lexer"
-{parser} = require "webscad/parser"
+{Lexer} = require "./lexer"
+{parser} = require "./parser"
 
 lexer = new Lexer
 
@@ -46,4 +46,4 @@ exports.parse = parse = (source, options) ->
   else
     parser.parse source
     
-parser.yy = require 'webscad/nodes'
+parser.yy = require './nodes'

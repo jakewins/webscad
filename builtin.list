@@ -15,6 +15,7 @@ These are things we need to support.
       union
       difference
       intersection
+	    render // Should not be needed
 
     Transform ops:
 	    scale
@@ -23,6 +24,8 @@ These are things we need to support.
 	    translate
 	    multmatrix
 	    color
+	    minkovski
+	    hull
 	    
 	  Control:
 	    child
@@ -30,17 +33,14 @@ These are things we need to support.
 	    assign
 	    for
 	    intersection_for
-	    if
+	    if // This is not a module
 	    
 	  Advanced:
-	    minkovski
 	    glide
 	    subdiv
-	    hull
 	
     Other:
       surface
-	    render
 	    projection
       import_dxf
       import_stl
