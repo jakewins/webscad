@@ -137,14 +137,13 @@ exports.Block = class Block extends Base
     for position in [0..@statements.length]
       statement = @statements[position]
       if statement instanceof Include or statement instanceof Use
-        loaded = load(statement.path)
-        
-        if statement instanceof Include
-          loaded = loaded.statements
-        else
-          loaded = loaded.getModuleDefinitions()
-        args = [position, 1].concat loaded
-        Array.prototype.splice.apply(@statements, args)
+        load statement.path, (loaded) =>
+          if statement instanceof Include
+            loaded = loaded.statements
+          else
+            loaded = loaded.getModuleDefinitions()
+          args = [position, 1].concat loaded
+          Array.prototype.splice.apply(@statements, args)
       
         
     @traverseChildren yes, (node) ->

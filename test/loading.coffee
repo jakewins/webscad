@@ -42,11 +42,11 @@ test 'produces correct effective AST with include statement', ->
   Array.prototype.splice.apply(st, [0,1].concat(externalAst.statements))
   scad = new Scad
   
-  scad.setFileLoader (path) ->
-    files[path[..-6]]
-  ast = scad.load('includeFile.scad')
+  scad.setFileLoader (path,cb) ->
+    cb(files[path[..-6]])
   
-  eq includeAst.toString(), ast.toString()
+  scad.load 'includeFile.scad', (ast) ->
+    eq includeAst.toString(), ast.toString()
   
 test 'produces correct effective AST with use statement', -> 
 
@@ -57,8 +57,8 @@ test 'produces correct effective AST with use statement', ->
   Array.prototype.splice.apply(st, [0,1].concat(externalAst.getModuleDefinitions()))
   scad = new Scad
   
-  scad.setFileLoader (path) ->
-    files[path[..-6]]
-  ast = scad.load('useFile.scad')
-  
-  eq useAst.toString(), ast.toString()
+  scad.setFileLoader (path,cb) ->
+    cb(files[path[..-6]])
+    
+  scad.load 'useFile.scad', (ast) ->  
+    eq useAst.toString(), ast.toString()
