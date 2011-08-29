@@ -1,5 +1,14 @@
 
+WebSCAD
+-------
+
+An implementation of SCAD for in-browser use. 
+
+The parser and the build tooling is based on the
+coffeescript project. 
+
 Architecture overview:
+----------------------
 
  1. Parsing
    
@@ -32,4 +41,11 @@ Architecture overview:
    
  5. Term execution
  
+   The CSG tree is executed, yielding a
+   single 3d object. 
+   
+ 6. Rendering
+   
+   The resulting 3d object is rendered in
+   some way.
    
