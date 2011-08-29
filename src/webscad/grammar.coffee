@@ -62,7 +62,7 @@ grammar =
     o 'Block TERMINATOR'
   ]
 
-  # A block consists of a list of statements.
+  # A block is the body of a module, a list of statements.
   Block: [
     o '{ }',                                    -> new Block
     o '{ TERMINATOR }',                         -> new Block
@@ -111,9 +111,6 @@ grammar =
     o 'COMMENT',                                -> new Comment $1
   ]
 
-  # The **Code** node is the function literal. It's defined by an indented block
-  # of **Block** preceded by a function arrow, with an optional parameter
-  # list.
   Code: [
     o 'FUNCTION Identifier PARAM_START ParamList PARAM_END = Expression', -> new Code $2, $4, $7
   ]

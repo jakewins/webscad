@@ -3,9 +3,9 @@
 
 scad = new Scad
 
-exports.produces = (expectedScene) ->
-  verify = (scene) ->
+exports.produces = (expectedCSG) ->
+  verify = (csg) ->
+    eq csg.toString(), expectedCSG.toString()
     
-
 exports.assertEvaluating = (text, verify) ->
   verify scad.evaluate( parse text )

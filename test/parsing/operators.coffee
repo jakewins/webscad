@@ -1,6 +1,6 @@
 
 {Block, NumberValue, StringValue, BooleanValue, VectorValue, RangeValue, UndefinedValue, Identifier, Assign, Code,
-Op, Module, Conditional} = require "../../lib/webscad/nodes"
+Op, Module, Conditional} = require "../../lib/webscad/ast"
 {assertParsingExpression, produces} = require "./parseutils"
 
 test 'parses not operator', -> 

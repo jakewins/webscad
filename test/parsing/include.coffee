@@ -1,5 +1,5 @@
 
-{Block, NumberValue, StringValue, BooleanValue, VectorValue, RangeValue, UndefinedValue, Identifier, Assign, Call, Include, Use} = require "../../lib/webscad/nodes"
+{Block, NumberValue, StringValue, BooleanValue, VectorValue, RangeValue, UndefinedValue, Identifier, Assign, Call, Include, Use} = require "../../lib/webscad/ast"
 {assertParsing, produces} = require "./parseutils"
 
 

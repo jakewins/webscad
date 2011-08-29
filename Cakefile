@@ -1,6 +1,5 @@
 fs            = require 'fs'
 path          = require 'path'
-{extend}      = require './lib/webscad/helpers'
 CoffeeScript  = require 'coffee-script'
 {spawn, exec} = require 'child_process'
 
@@ -44,6 +43,7 @@ task 'build:full', 'rebuild the source twice, and run the tests', ->
 
 
 task 'build:parser', 'rebuild the Jison parser (run build first)', ->
+  {extend} = require './lib/webscad/helpers'
   extend global, require('util')
   require 'jison'
   parser = require('./lib/webscad/grammar').parser
@@ -52,7 +52,7 @@ task 'build:parser', 'rebuild the Jison parser (run build first)', ->
 
 task 'build:browser', 'rebuild the merged script for inclusion in the browser', ->
   code = ''
-  for name in ['helpers', 'lexer', 'parser', 'nodes', 'scad']
+  for name in ['helpers', 'lexer', 'parser', 'ast', 'scad']
     code += """
       require['./#{name}'] = new function() {
         var exports = this;

@@ -5,6 +5,8 @@
 
 # Import the helpers we plan to use.
 {compact, flatten, extend, merge, del, starts, ends, last} = require './helpers'
+csg = require './csg'
+{TreeNode} = require './tree'
 
 exports.extend = extend  # for parser
 
@@ -14,57 +16,43 @@ NO      = -> no
 THIS    = -> this
 NEGATE  = -> @negated = not @negated; this
 
+exports.Context = class Context
+
+  constructor: (@parent) ->
+    @_modules = {}
+    @_functions = {}
+    @_vars = {}
+    
+  getModule: (name)->
+    @_get name, "_modules", "No module named #{name}"
+    
+  getVar: (name)->
+    @_get name, "_vars", null, true
+    
+  getFunction: (name)->
+    @_get name, "_functions", "No function named #{name}"
+    
+  _get : (name, attrname, errMsgOrDefault, hasDefault=false)->
+    if @[attrname][name]?
+      return @[attrname][name]
+    if @parent?
+      return @parent._get name, attrname, errMsgOrDefault, hasDefault
+    if hasDefault
+      return errMsgOrDefault
+    throw new Error(errMsgOrDefault)
+    
+
 #### Base
 
 # The **Base** is the abstract base class for all nodes in the syntax tree.
-exports.Base = class Base
-  # Construct a node that returns the current node's result.
-  # Note that this is overridden for smarter behavior for
-  # many statement nodes (e.g. If, For)...
-  makeReturn: ->
-    new Return this
-
-  # Does this node, or any of its children, contain a node of a certain kind?
-  # Recursively traverses down the *children* of the nodes, yielding to a block
-  # and returning true when the block finds a match. `contains` does not cross
-  # scope boundaries.
-  contains: (pred) ->
-    contains = no
-    @traverseChildren no, (node) ->
-      if pred node
-        contains = yes
-        return no
-    contains
-
-  # Is this node of a certain type, or does it contain the type?
-  containsType: (type) ->
-    this instanceof type or @contains (node) -> node instanceof type
+exports.Base = class Base extends TreeNode
 
   # Pull out the last non-comment node of a node list.
   lastNonComment: (list) ->
     i = list.length
     return list[i] while i-- when list[i] not instanceof Comment
     null
-
-  # `toString` representation of the node, for inspecting the parse tree.
-  toString: (idt = '', name = @constructor.name) ->
-    tree = '\n' + idt + name
-    @eachChild (node) -> tree += node.toString idt + TAB
-    tree
-
-  # Passes each child to a function, breaking when the function returns `false`.
-  eachChild: (func) ->
-    return this unless @children
-    for attr in @children when @[attr]
-      for child in flatten [@[attr]]
-        return this if func(child) is false
-    this
-
-  traverseChildren: (crossScope, func) ->
-    @eachChild (child) ->
-      return false if func(child) is false
-      child.traverseChildren crossScope, func
-
+    
   invert: ->
     new Op '!', this
 
@@ -72,10 +60,6 @@ exports.Base = class Base
     node = this
     continue until node is node = node.unwrap()
     node
-
-  # Default implementations of the common node properties and methods. Nodes
-  # will override these with custom logic, if needed.
-  children: []
 
   isStatement     : NO
   jumps           : NO
@@ -92,8 +76,8 @@ exports.Base = class Base
 
 # The block is a list of statements
 exports.Block = class Block extends Base
-  constructor: (nodes) ->
-    @statements = compact flatten nodes or []
+  constructor: (statements) ->
+    @statements = compact flatten statements or []
 
   children: ['statements']
 
@@ -144,9 +128,8 @@ exports.Block = class Block extends Base
             loaded = loaded.getModuleDefinitions()
           args = [position, 1].concat loaded
           Array.prototype.splice.apply(@statements, args)
-      
-        
-    @traverseChildren yes, (node) ->
+    
+    @traverseChildren (node) ->
       if node instanceof Block
         node.replaceIncludes(load, false) 
     this
@@ -158,12 +141,19 @@ exports.Block = class Block extends Base
         modules.push node
     modules
     
+  evaluate: (ctx) ->
+    ctx = new Context(ctx)
+    children = []
+    for statement in @statements
+      if statement instanceof ModuleCall
+        children.push statement.evaluate ctx
+      else
+        statement.evaluate ctx
+    
+    new csg.Union(children)
 
 #### Literal
 
-# Literals are static values that can be passed through directly into
-# JavaScript without translation, such as: strings, numbers,
-# `true`, `false`, `null`...
 exports.Literal = class Literal extends Base
   constructor: (@value) ->
 
@@ -335,9 +325,10 @@ exports.Comment = class Comment extends Base
 # Node for a function invocation. Takes care of converting `super()` calls into
 # calls against the prototype's function of the same name.
 exports.FunctionCall = class FunctionCall extends Base
-  constructor: (@variable, @args = []) ->
+  constructor: (@name, @args = []) ->
+    @name = @name.name
     
-  children: ['variable', 'args']
+  children: ['args']
 
 
 # Module invocation, this differs from function
@@ -346,12 +337,13 @@ exports.FunctionCall = class FunctionCall extends Base
 exports.ModuleCall = class ModuleCall extends Base
 
   constructor: (@name, @args = [], @subModules=[], opts={}) ->
+    @name = if @name then @name.name else ""
     @isRoot = opts.isRoot or false
     @isHighlighted = opts.isHighlighted or false
     @isInBackground = opts.isInBackground or false
     @isIgnored = opts.isIgnored or false
     
-  children: ['name', 'args', 'subModules']
+  children: ['args', 'subModules']
   
   setIsRoot : (@isRoot) -> this
   setIsHighlighted : (@isHighlighted) -> this
@@ -367,6 +359,11 @@ exports.ModuleCall = class ModuleCall extends Base
     tree = '\n' + idt + name + modifiers
     @eachChild (node) -> tree += node.toString idt + TAB
     tree
+    
+  evaluate: (ctx)->
+    childevals = for child in @children
+      child.evaluate ctx
+    ctx.getModule(@name).evaluate ctx, childevals
 
 #### MemberAccess
 
@@ -404,11 +401,17 @@ exports.Range = class Range extends Base
 
 #### Module
 
+### A module in the AST represents the 
+definition of a module, with a name, 
+a declaration of arguments, and a module block, or 
+body.
+###
 exports.Module = class Module extends Base
   constructor: (@name, @args, @body = new Block) ->
     # no-op
 
   children: ['name', 'args', 'body']
+
 
 #### Assign
 
@@ -545,21 +548,6 @@ TAB = '  '
 IDENTIFIER_STR = "[$A-Za-z_\\x7f-\\uffff][$\\w\\x7f-\\uffff]*"
 IDENTIFIER = /// ^ #{IDENTIFIER_STR} $ ///
 SIMPLENUM  = /^[+-]?\d+$/
-METHOD_DEF = ///
-  ^
-    (?:
-      (#{IDENTIFIER_STR})
-      \.prototype
-      (?:
-        \.(#{IDENTIFIER_STR})
-      | \[("(?:[^\\"\r\n]|\\.)*"|'(?:[^\\'\r\n]|\\.)*')\]
-      | \[(0x[\da-fA-F]+ | \d*\.?\d+ (?:[eE][+-]?\d+)?)\]
-      )
-    )
-  |
-    (#{IDENTIFIER_STR})
-  $
-///
 
 # Is a literal value a string?
 IS_STRING = /^['"]/

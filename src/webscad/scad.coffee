@@ -1,5 +1,10 @@
 {Lexer} = require "./lexer"
 {parser} = require "./parser"
+{extend} = require "./helpers"
+ns = require './ast'
+
+# Build ins
+builtin = require './builtins'
 
 lexer = new Lexer
 
@@ -14,7 +19,7 @@ parser.lexer =
     ""
     
 exports.Scad = class Scad
-  
+
   ###
   Set the file loader to be used
   by Scad#load(path).
@@ -45,28 +50,14 @@ exports.Scad = class Scad
       calls--
       cb(ast) if calls == 0
       
-  
-  ###
-  Takes an effective AST (an AST
-  with includes, use's, and AST modifiers
-  resolved, usually created by
-  Scad#load(path,cb)), and returns a scene
-  to be rendered.
-  ###
-  evaluate : (ast) ->
+  evaluate : (root_block) ->
+    
+    ctx = new ns.Context
+    ctx._modules = builtin.modules
+    ctx._functions = builtin.functions
       
-
-exports.Evaluator = class Evaluator
-  
-  constructor : (@render) ->
-    # pass
-  
-  evaluate : (ast, ctx={}) ->
-    vars = ctx.vars or {}
-    modules = ctx.modules or {}
-    for st in ast.statements
-      if st instanceof Module
-        modules[st.name] = st
+    call = new ns.ModuleCall()
+    root_block.evaluate(ctx, call)
     
 # Parse a string of SCAD code or an array of lexed tokens, and
 # return the AST. You can then compile it by calling `.compile()` on the root,
@@ -77,4 +68,4 @@ exports.parse = parse = (source, options) ->
   else
     parser.parse source
     
-parser.yy = require './nodes'
+parser.yy = ns

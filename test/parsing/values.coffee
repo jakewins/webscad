@@ -1,6 +1,6 @@
 
 {Block, NumberValue, StringValue, BooleanValue, VectorValue, RangeValue, UndefinedValue, IndexAccess, Access, Identifier,
-FunctionCall, MemberAccess} = require "../../lib/webscad/nodes"
+FunctionCall, MemberAccess} = require "../../lib/webscad/ast"
 {assertParsingExpression, produces} = require "./parseutils"
 
 test 'parses undefined values', -> 

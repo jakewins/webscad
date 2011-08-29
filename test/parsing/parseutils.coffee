@@ -1,6 +1,6 @@
 
 scad = require "../../lib/webscad/scad"
-{Block} = require "../../lib/webscad/nodes"
+{Block} = require "../../lib/webscad/ast"
 {Lexer} = require "../../lib/webscad/lexer"
 
 lexer = new Lexer
