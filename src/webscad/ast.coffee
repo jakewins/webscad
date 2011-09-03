@@ -76,7 +76,7 @@ exports.Base = class Base extends TreeNode
   isAssignable    : NO
 
   unwrap     : THIS
-
+  
 #### Block
 
 # The block is a list of statements
@@ -178,6 +178,7 @@ exports.Value = class Value extends Base
   isArray        : -> not @properties.length and @base instanceof Arr
   isComplex      : -> @hasProperties() or @base.isComplex()
   isAssignable   : -> @hasProperties() or @base.isAssignable()
+
   isAtomic       : ->
     for node in @properties.concat @base
       return no if node instanceof Call
@@ -188,6 +189,7 @@ exports.Value = class Value extends Base
   isObject: (onlyGenerated) ->
     return no if @properties.length
     (@base instanceof Obj) and (not onlyGenerated or @base.generated)
+
 
   # The value can be unwrapped as its inner node, if there are no attached
   # properties.
@@ -237,11 +239,13 @@ exports.VectorValue = class VectorValue extends BaseValue
 
   children: ['objects']
 
+
 exports.RangeValue = class RangeValue extends BaseValue
 
   constructor: (@from, @step, @to) ->
 
   children: ['from','step','to']
+
 
 #### Comment
 
@@ -393,7 +397,7 @@ exports.Assign = class Assign extends Base
     @param = options and options.param
 
   children: ['variable', 'value']
-
+  
 #### Code
 
 # A function definition. 
@@ -493,4 +497,3 @@ SIMPLENUM  = /^[+-]?\d+$/
 
 # Is a literal value a string?
 IS_STRING = /^['"]/
-

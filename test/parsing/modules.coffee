@@ -87,7 +87,7 @@ mymodule(12){
   thirdModule();
 };''', produces [
     new ModuleCall(
-      new Identifier('mymodule'), 
+      new Identifier('mymodule'),
       new Arguments([new NumberValue(12)]),
       [
         new ModuleCall(new Identifier('otherModule'))

@@ -21,7 +21,6 @@ exports.Cube = class Cube extends CsgNode
   constructor:(@size,@center)->
   
   render:()->
-    
 
 #### CSG OPERATIONS
 

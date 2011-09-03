@@ -14,6 +14,6 @@ test 'parses basic function', ->
 test 'parses function call', -> 
   assertParsingExpression 'myfunc(d)', produces [
     new FunctionCall(
-      new Identifier('myfunc'), 
+      new Identifier('myfunc'),
       new Arguments([new Identifier('d')]))
   ]
