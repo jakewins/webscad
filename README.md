@@ -10,10 +10,15 @@ coffeescript project.
 Architecture overview:
 ----------------------
 
+ - Lexing
+   
+   Reads raw text, outputs a list
+   of tokens.
+
  - Parsing
    
    Based on the CoffeeScript parser,
-   parses input text, resolves imports,
+   parses the list of tokens, resolves imports,
    and yields an abstract syntax tree.
    
  - Evaluation
@@ -25,24 +30,10 @@ Architecture overview:
    Yields a CSG Tree, consisting of
    CSG operations and primitives.
    
- - Normalization
+ - CSG execution
  
-   The CSG term tree is normalized, 
-   optimizing the amount of work we 
-   need to do once we actually perform 
-   the 3d operations it describes.
-   
- - CSG chain generation
- 
-   The normalized CSG term tree is
-   turned into a chain, describing
-   the order of which terms need to 
-   be executed.
-   
- - Term execution
- 
-   The CSG chain is executed, yielding a
-   single 3d object. 
+   The CSG tree is executed, yielding a
+   single 3d object.
    
  - Rendering
    

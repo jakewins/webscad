@@ -19,6 +19,9 @@ exports.Cube = class Cube extends CsgNode
   toStringAttrs:['size','center']
 
   constructor:(@size,@center)->
+  
+  render:()->
+    
 
 #### CSG OPERATIONS
 
@@ -27,3 +30,12 @@ exports.Union = class Union extends CsgNode
   constructor: (@nodes)->
     
   children: ['nodes']
+  
+  render:()->
+    first = true
+    for node in @nodes
+      if first
+        first = false
+        polyhedron = node.render()
+      else
+        polyhedron.union node.render()
