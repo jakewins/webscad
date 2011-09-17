@@ -1,9 +1,10 @@
 
-scad = require "../../lib/webscad/scad"
+{Scad} = require "../../lib/webscad/scad"
 {Block} = require "../../lib/webscad/ast"
 {Lexer} = require "../../lib/webscad/lexer"
 
 lexer = new Lexer
+scad = new Scad
 
 exports.produces = (expectedAst) -> 
   # Block is always at the bottom, include it here for DRY

@@ -1,5 +1,7 @@
 
-{Scad,parse} = require "../lib/webscad/scad"
+{Scad} = require "../lib/webscad/scad"
+
+parse = (new Scad).parse
 
 files = {}
 

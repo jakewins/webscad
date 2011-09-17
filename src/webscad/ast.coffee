@@ -51,10 +51,10 @@ exports.Context = class Context
     throw new Error(errMsgOrDefault)
     
 
-#### Base
+#### AstNode
 
-# The **Base** is the abstract base class for all nodes in the syntax tree.
-exports.Base = class Base extends TreeNode
+# The **AstNode** is the abstract base class for all nodes in the syntax tree.
+exports.AstNode = class AstNode extends TreeNode
 
   # Pull out the last non-comment node of a node list.
   lastNonComment: (list) ->
@@ -80,7 +80,7 @@ exports.Base = class Base extends TreeNode
 #### Block
 
 # The block is a list of statements
-exports.Block = class Block extends Base
+exports.Block = class Block extends AstNode
   constructor: (statements) ->
     @statements = compact flatten statements or []
 
@@ -156,7 +156,7 @@ exports.Block = class Block extends Base
 
 # A value, variable or literal or parenthesized, indexed or dotted into,
 # or vanilla.
-exports.Value = class Value extends Base
+exports.Value = class Value extends AstNode
   constructor: (base, props, tag) ->
     return base if not props and base instanceof Value
     @base       = base
@@ -196,13 +196,13 @@ exports.Value = class Value extends Base
   unwrap: ->
     if @properties.length then this else @base
 
-exports.Identifier = class Identifier extends Base
+exports.Identifier = class Identifier extends AstNode
   constructor: (@name) ->
   
   toString: (idt = '', name = @constructor.name) ->
     super(idt,name) + ' "' + @name + '"'
 
-exports.BaseValue = class BaseValue extends Base
+exports.BaseValue = class BaseValue extends AstNode
   constructor: (@value) ->
   
   evaluate: (ctx) ->
@@ -251,7 +251,7 @@ exports.RangeValue = class RangeValue extends BaseValue
 
 # CoffeeScript passes through block comments as JavaScript block comments
 # at the same position.
-exports.Comment = class Comment extends Base
+exports.Comment = class Comment extends AstNode
   constructor: (@comment) ->
 
   isStatement:     YES
@@ -262,7 +262,7 @@ exports.Comment = class Comment extends Base
 #### Arguments
 
 # Arguments for a function call or module invocation.
-exports.Arguments = class Arguments extends Base
+exports.Arguments = class Arguments extends AstNode
     
   children: ['args']
   
@@ -293,7 +293,7 @@ exports.Arguments = class Arguments extends Base
 
 # Node for a function invocation. Takes care of converting `super()` calls into
 # calls against the prototype's function of the same name.
-exports.FunctionCall = class FunctionCall extends Base
+exports.FunctionCall = class FunctionCall extends AstNode
   constructor: (@name, @args = new Arguments) ->
     @name = @name.name
     
@@ -303,7 +303,7 @@ exports.FunctionCall = class FunctionCall extends Base
 # Module invocation, this differs from function
 # invocation in that it is a statement, and can have
 # syntax like: mymodule(arg1,arg2) { childModule(); otherModule(); }
-exports.ModuleCall = class ModuleCall extends Base
+exports.ModuleCall = class ModuleCall extends AstNode
 
   constructor: (@name, @args = new Arguments, @subModules=[], opts={}) ->
     @name = if @name then @name.name else ""
@@ -343,7 +343,7 @@ exports.ModuleCall = class ModuleCall extends Base
 #### MemberAccess
 
 # A `.` access into a property of a value
-exports.MemberAccess = class MemberAccess extends Base
+exports.MemberAccess = class MemberAccess extends AstNode
   constructor: (@objectExpression, @memberName) ->
 
   children: ['objectExpression','memberName']
@@ -353,7 +353,7 @@ exports.MemberAccess = class MemberAccess extends Base
 #### IndexAccess
 
 # A `[ ... ]` indexed access into a vector
-exports.IndexAccess = class IndexAccess extends Base
+exports.IndexAccess = class IndexAccess extends AstNode
   constructor: (@vectorExpression, @indexExpression) ->
 
   children: ['vectorExpression','indexExpression']
@@ -366,7 +366,7 @@ exports.IndexAccess = class IndexAccess extends Base
 # A range literal. Ranges can be used to extract portions (slices) of arrays,
 # to specify a range for comprehensions, or as a value, to be expanded into the
 # corresponding array of integers at runtime.
-exports.Range = class Range extends Base
+exports.Range = class Range extends AstNode
 
   children: ['from', 'to']
 
@@ -381,7 +381,7 @@ definition of a module, with a name,
 a declaration of arguments, and a module block, or 
 body.
 ###
-exports.Module = class Module extends Base
+exports.Module = class Module extends AstNode
   constructor: (@name, @params=[], @body = new Block) ->
     # no-op
 
@@ -392,7 +392,7 @@ exports.Module = class Module extends Base
 
 # The **Assign** is used to assign a local variable to value, or to set the
 # property of an object -- including within object literals.
-exports.Assign = class Assign extends Base
+exports.Assign = class Assign extends AstNode
   constructor: (@variable, @value, @context, options) ->
     @param = options and options.param
 
@@ -401,7 +401,7 @@ exports.Assign = class Assign extends Base
 #### Code
 
 # A function definition. 
-exports.Code = class Code extends Base
+exports.Code = class Code extends AstNode
   constructor: (@name, params, @expression) ->
     @params  = params or []
 
@@ -418,7 +418,7 @@ exports.Code = class Code extends Base
 
 # Simple Arithmetic and logical operations. Performs some conversion from
 # CoffeeScript operations into their JavaScript equivalents.
-exports.Op = class Op extends Base
+exports.Op = class Op extends AstNode
   constructor: (op, first, second, flip ) ->
     @operator = op
     @first    = first
@@ -433,7 +433,7 @@ exports.Op = class Op extends Base
 
 #### Use
 
-exports.Use = class Use extends Base
+exports.Use = class Use extends AstNode
 
   constructor: (@path) ->
 
@@ -442,7 +442,7 @@ exports.Use = class Use extends Base
 
 #### Include
 
-exports.Include = class Include extends Base
+exports.Include = class Include extends AstNode
 
   constructor: (@path) ->
 
@@ -453,7 +453,7 @@ exports.Include = class Include extends Base
 
 # 1>1 ? true : false
 
-exports.Conditional = class Conditional extends Base
+exports.Conditional = class Conditional extends AstNode
   constructor: (@condition, @trueExpression, @falseExpression) ->
 
   children: ['condition', 'trueExpression', 'falseExpression']
@@ -465,7 +465,7 @@ exports.Conditional = class Conditional extends Base
 #
 # Single-expression **Ifs** are compiled into conditional operators if possible,
 # because ternaries are already proper expressions, and don't need conversion.
-exports.If = class If extends Base
+exports.If = class If extends AstNode
   constructor: (@condition, @body, options = {}) ->
     @elseBody  = null
     @isChain   = false

@@ -8,4 +8,4 @@ exports.produces = (expectedCSG) ->
     eq csg.toString(), expectedCSG.toString()
     
 exports.assertEvaluating = (text, verify) ->
-  verify scad.evaluate( parse text )
+  verify scad.evaluate scad.parse text

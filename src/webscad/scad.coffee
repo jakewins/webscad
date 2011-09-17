@@ -1,7 +1,9 @@
 {Lexer} = require "./lexer"
 {parser} = require "./parser"
 {extend} = require "./helpers"
-ns = require './ast'
+
+astNodes = require './ast'
+csgNodes = require './csg'
 
 # Build ins
 builtin = require './builtins'
@@ -17,7 +19,11 @@ parser.lexer =
     @pos = 0
   upcomingInput: ->
     ""
+
+# Give parser AST node types
+parser.yy = astNodes
     
+
 exports.Scad = class Scad
 
   ###
@@ -39,7 +45,7 @@ exports.Scad = class Scad
   ###
   load : (path, cb) ->
     @fileLoader path, (text) =>
-      ast = parse text
+      ast = @parse text
       calls = 1
       ast.replaceIncludes (path, replaceCb) =>
         calls++
@@ -50,22 +56,38 @@ exports.Scad = class Scad
       calls--
       cb(ast) if calls == 0
       
+  ###
+  Parse a string of SCAD code or an array of lexed tokens, and
+  return the AST. 
+  ###
+  parse : (source, options) ->
+    if typeof source is 'string'
+      parser.parse lexer.tokenize source, options
+    else
+      parser.parse source
+      
+  ###
+  Evalutate an abstract syntax tree, yielding
+  a CSG tree.
+  ###
   evaluate : (ast) ->
     
-    ctx = new ns.Context
+    if typeof ast is 'string' or ast not instanceof astNodes.AstNode
+      ast = @parse ast
+    
+    ctx = new astNodes.Context
     ctx._modules = builtin.modules
     ctx._functions = builtin.functions
       
-    call = new ns.ModuleCall()
+    call = new astNodes.ModuleCall()
     ast.evaluate(ctx, call)
+   
+  ###
+  Render a CSG tree, yielding the final 3d output
+  in the form of a polyhedron object.
+  ### 
+  render : (csgTree) ->
+    if typeof csgTree is 'string' or csgTree not instanceof csgNodes.CsgNode
+      csgTree = @evaluate csgTree
     
-# Parse a string of SCAD code or an array of lexed tokens, and
-# return the AST. You can then compile it by calling `.compile()` on the root,
-# or traverse it by using `.traverse()` with a callback.
-exports.parse = parse = (source, options) ->
-  if typeof source is 'string'
-    parser.parse lexer.tokenize source, options
-  else
-    parser.parse source
-    
-parser.yy = ns
+    csgTree.render()
