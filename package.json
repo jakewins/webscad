@@ -1,0 +1,30 @@
+{
+  "name":         "webscad",
+  "description":  "SCAD for javascript",
+  "keywords":     ["openscad","scad","webscad", "compiler"],
+  "author":       "Jacob Hansson",
+  "version":      "1.0.0",
+  "licenses":     [{
+    "type":       "MIT",
+    "url":        "https://raw.github.com/jakewins/webscad/master/LICENSE"
+  }],
+  "engines":      {
+    "node":       ">=0.4.0"
+  },
+  "directories" : {
+    "lib" : "./lib/coffee-script"
+  },
+  "main" : "./lib/coffee-script/coffee-script",
+  "bin":          {
+    
+  },
+  "bugs":         "https://github.com/jakewins/webscad/issues",
+  "repository":   {
+    "type": "git",
+    "url": "git://github.com/jakewins/webscad.git"
+  },
+  "devDependencies": {
+    "jison":         ">=0.2.0",
+    "coffee-script": ">=1.3.0"
+  }
+}

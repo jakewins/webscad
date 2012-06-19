@@ -4,10 +4,16 @@ CoffeeScript  = require 'coffee-script'
 {spawn, exec} = require 'child_process'
 
 # ANSI Terminal Colors.
-bold  = '\033[0;1m'
-red   = '\033[0;31m'
-green = '\033[0;32m'
-reset = '\033[0m'
+enableColors = no
+unless process.platform is 'win32'
+  enableColors = not process.env.NODE_DISABLE_COLORS
+
+bold = red = green = reset = ''
+if enableColors
+  bold  = '\x1B[0;1m'
+  red   = '\x1B[0;31m'
+  green = '\x1B[0;32m'
+  reset = '\x1B[0m'
 
 # Built file header.
 header = """
@@ -52,7 +58,7 @@ task 'build:parser', 'rebuild the Jison parser (run build first)', ->
 
 task 'build:browser', 'rebuild the merged script for inclusion in the browser', ->
   code = ''
-  for name in ['helpers', 'lexer', 'parser', 'ast', 'scad']
+  for name in ['helpers', 'lexer', 'parser','tree','geometry','csg','ast','builtins','scad','render']
     code += """
       require['./#{name}'] = new function() {
         var exports = this;
@@ -60,11 +66,11 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
       };
     """
   code = """
-    this.WebScad = function() {
+    this.WebSCAD = (function() {
       function require(path){ return require[path]; }
       #{code}
-      return require['./webscad/scad']
-    }()
+      return require['./render']
+    })();
   """
   unless process.env.MINIFY is 'false'
     {parser, uglify} = require 'uglify-js'
