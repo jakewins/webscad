@@ -419,6 +419,21 @@ exports.PolyhedronBuilder = class PolyhedronBuilder
     throw new Error("A closed surface already exists, yet facet #{@newFaces} is still adjacent.")
     
     
+### A lookup table with an arbitrary number of dimensions,
+used to store and retrieve objects using points.
+
+You can use it as a two-dimensional structure:
+
+  mygrid.set([0,0],"This is the object at 0,0")
+  obj = mygrid.get([0,0])
+
+Or as a three dimensional one:
+
+  mygrid.set([0,0,0],"This is the object at 0,0,0")
+  obj = mygrid.get([0,0,0])
+
+Or any other number of dimensions.
+###
 exports.Grid = class Grid
   
   constructor : () ->

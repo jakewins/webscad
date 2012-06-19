@@ -332,3 +332,4 @@ exports.parser = new Parser
   bnf         : grammar
   operators   : operators.reverse()
   startSymbol : 'Root'
+  moduleInclude : 'asd'

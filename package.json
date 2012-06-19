@@ -24,7 +24,7 @@
     "url": "git://github.com/jakewins/webscad.git"
   },
   "devDependencies": {
-    "jison":         ">=0.2.0",
+    "jison":         "0.2.0",
     "coffee-script": ">=1.3.0"
   }
 }

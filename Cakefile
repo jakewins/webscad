@@ -37,7 +37,7 @@ log = (message, color, explanation) ->
 option '-p', '--prefix [DIR]', 'set the installation prefix for `cake install`'
 
 
-task 'build', 'build the CoffeeScript language from source', ->
+task 'build', 'build WebSCAD from source', ->
   run ['-c', '-o', 'lib', 'src']
 
 

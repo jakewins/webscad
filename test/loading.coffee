@@ -40,8 +40,11 @@ test 'produces correct effective AST with include statement', ->
   includeAst = parse(files.includeFile)
   externalAst = parse(files.externalFile)
   
+  # This is what we expect
   st = includeAst.statements
   Array.prototype.splice.apply(st, [0,1].concat(externalAst.statements))
+  
+  # Make the Scad object do it
   scad = new Scad
   
   scad.setFileLoader (path,cb) ->
