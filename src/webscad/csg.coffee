@@ -8,7 +8,7 @@ be performed to yield a 3d model.
 ###
 
 {TreeNode} = require './tree'
-{PolyhedronBuilder} = require './geometry'
+{PolyhedronBuilder, NefPolyhedron} = require './geometry'
 
 class CsgNode extends TreeNode
 
@@ -22,7 +22,7 @@ exports.Cube = class Cube extends CsgNode
   constructor:(@size,@center)->
     @x = @y = @z = @size
   
-  render:()->
+  evaluate:()->
     if @center
       x1 = -@x/2
       x2 = +@x/2
@@ -62,7 +62,7 @@ exports.Cube = class Cube extends CsgNode
        [x1,y1,z2],[x1,y2,z2]]
     ]
   
-    PolyhedronBuilder.fromPolygons polygons
+    new NefPolyhedron PolyhedronBuilder.fromPolygons polygons
 
 #### CSG OPERATIONS
 
@@ -72,12 +72,12 @@ exports.Union = class Union extends CsgNode
     
   children: ['nodes']
   
-  render:()->
+  evaluate:()->
     first = true
     for node in @nodes
       if first
         first = false
-        polyhedron = node.render()
+        polyhedron = node.evaluate()
       else
-        polyhedron.union node.render()
+        polyhedron.union node.evaluate()
     return polyhedron

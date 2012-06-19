@@ -7,6 +7,15 @@ An implementation of SCAD for in-browser use.
 The parser and the build tooling is based on the
 coffeescript project. 
 
+This is still incomplete, the SCAD -> AST parsing
+is done, and the infrastructure for the CSG tree.
+
+Usage
+-----
+
+npm install
+cake test
+
 Architecture overview:
 ----------------------
 

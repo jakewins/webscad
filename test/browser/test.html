@@ -7,10 +7,10 @@
     <script type="text/javascript" src="../../extras/webscad.js"></script>
     <script type="text/javascript">
     window.onload = function() {
-
+            
             var renderer = new THREE.WebGLRenderer();
-            renderer.setSize( 800, 400 );
-            document.body.appendChild( renderer.domElement );
+            renderer.setSize( 500, 400 );
+            document.getElementById('output-wrap').appendChild( renderer.domElement );
 
             var scene = new THREE.Scene();
 
@@ -35,14 +35,37 @@
             renderer.render(scene, camera);
 
     };
+    
+    function render(text) {
+      console.log(WebSCAD.render(text));
+    };
     </script>
+    
+    <style>
+    #input-wrap {
+      float:left;
+      width:48%;
+    }
+      #scad-input {
+        width:98%;
+        height:400px;
+      }
+    #output-wrap {
+      float:left;
+      width:48%;
+    }
+    </style>
     
   </head>
 
   <body>
-  
-  
-  
+    <div id='input-wrap'>
+      <textarea id='scad-input'></textarea>
+      <input type="button" onclick='render(document.getElementById("scad-input").value)' value='render' />
+    </div>
+    <div id='output-wrap'>
+    
+    </div>
   </body>
 
 </html>

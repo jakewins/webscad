@@ -4,6 +4,7 @@
 
 astNodes = require './ast'
 csgNodes = require './csg'
+{NefPolyhedron} = require './geometry'
 
 # Build ins
 builtin = require './builtins'
@@ -70,7 +71,7 @@ exports.Scad = class Scad
   Evalutate an abstract syntax tree, yielding
   a CSG tree.
   ###
-  evaluate : (ast) ->
+  evalAst : (ast) ->
     
     if typeof ast is 'string' or ast not instanceof astNodes.AstNode
       ast = @parse ast
@@ -83,11 +84,18 @@ exports.Scad = class Scad
     ast.evaluate(ctx, call)
    
   ###
-  Render a CSG tree, yielding the final 3d output
-  in the form of a polyhedron object.
+  Evaluate a CSG tree, yielding the final 3d output
+  in the form of a NefPolyhedron object.
   ### 
-  render : (csgTree) ->
+  evalCsg : (csgTree) ->
     if typeof csgTree is 'string' or csgTree not instanceof csgNodes.CsgNode
-      csgTree = @evaluate csgTree
+      csgTree = @evalAst csgTree
     
-    csgTree.render()
+    csgTree.evaluate()
+    
+  render : (nefPolyhedron) ->
+    if typeof nefPolyhedron is 'string' or nefPolyhedron not instanceof NefPolyhedron
+      nefPolyhedron = @evalCsg nefPolyhedron
+      
+    
+    

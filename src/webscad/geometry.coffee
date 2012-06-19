@@ -128,6 +128,58 @@ exports.Polyhedron = class Polyhedron extends HalfEdgeDataStructure
     return ""
 
 
+exports.NefPolyhedron = class NefPolyhedron
+  
+  constructor : (@polyhedron) ->
+    
+  #
+  # NefPolyhedrons related to this NefPolyhedron
+  #
+  
+  complement : ->
+    throw new Error("Not implemented")
+  interior : ->
+    throw new Error("Not implemented")
+  closure : ->
+    throw new Error("Not implemented")
+  boundary : ->
+    throw new Error("Not implemented")
+  regularization : ->
+    throw new Error("Not implemented")
+  
+  # 
+  # Manipulations using another NefPolyhedron
+  #
+  
+  intersection : (other) -> 
+    throw new Error("Not implemented")
+  join : (other) -> 
+    throw new Error("Not implemented")
+  difference : (other) -> 
+    throw new Error("Not implemented")
+  symmetricDifference : (other) -> 
+    throw new Error("Not implemented")
+  complement : (other) -> 
+    throw new Error("Not implemented")
+  
+  # 
+  # Transformations of this NefPolyhedron
+  # 
+  
+  transform : (transformation) -> 
+    throw new Error("Not implemented")
+  changeOrientation : (full=false) ->
+    throw new Error("Not implemented")
+  
+  isScaling : (transformation) ->
+    throw new Error("Not implemented")
+  is90DegreeRotation : (transformation) ->
+    throw new Error("Not implemented")
+
+  toString : () ->
+    return ""
+    
+    
 ### A coffeescript port of CGAL's
 Polyhedron_incremental_builder_3.
 ###    
