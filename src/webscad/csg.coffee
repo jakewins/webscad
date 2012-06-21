@@ -17,10 +17,13 @@ class CsgNode extends TreeNode
 
 exports.Cube = class Cube extends CsgNode
 
-  toStringAttrs:['size','center']
+  toStringAttrs:['x','y','z','center']
 
-  constructor:(@size,@center)->
-    @x = @y = @z = @size
+  constructor:(size,@center)->
+    if size instanceof Array
+      [@x,@y,@z] = size
+    else
+      @x = @y = @z = size
   
   evaluate:()->
     if @center
@@ -37,31 +40,14 @@ exports.Cube = class Cube extends CsgNode
       z2 = @z
   
     polygons = [
-      # Top
-      [[x1,y1,z2],[x2,y1,z2]
-       [x2,y2,z2],[x1,y2,z2]]
-      
-      # Bottom
-      [[x1,y2,z1],[x1,y2,z1]
-       [x2,y2,z1],[x2,y1,z1]]
-       
-      # Side 1
-      [[x1,y1,z1],[x2,y1,z1]
-       [x2,y1,z2],[x1,y1,z2]]
-       
-      # Side 2
-      [[x2,y1,z1],[x2,y2,z1]
-       [x2,y2,z2],[x2,y1,z2]]
-       
-      # Side 3
-      [[x2,y2,z1],[x1,y2,z1]
-       [x1,y2,z2],[x2,y2,z2]]
-       
-      # Side 4
-      [[x1,y2,z1],[x1,y1,z1]
-       [x1,y1,z2],[x1,y2,z2]]
+      [[x1,y1,z2],[x2,y1,z2],[x2,y2,z2],[x1,y2,z2]]
+      [[x1,y2,z1],[x2,y2,z1],[x2,y1,z1],[x1,y1,z1]]
+      [[x1,y1,z1],[x2,y1,z1],[x2,y1,z2],[x1,y1,z2]]
+      [[x2,y1,z1],[x2,y2,z1],[x2,y2,z2],[x2,y1,z2]]
+      [[x2,y2,z1],[x1,y2,z1],[x1,y2,z2],[x2,y2,z2]]
+      [[x1,y2,z1],[x1,y1,z1],[x1,y1,z2],[x1,y2,z2]]
     ]
-  
+
     new NefPolyhedron PolyhedronBuilder.fromPolygons polygons
 
 #### CSG OPERATIONS

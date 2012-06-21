@@ -100,7 +100,7 @@ exports.HalfEdge = class HalfEdge
     p = if @previous? and @previous.vertex? then @previous.vertex.toString() else "null"
     n = if @next? and @next.vertex? then @next.vertex.toString() else "null"
     f = if @face? and @face.halfEdge? and @face.halfEdge.vertex? then @face.halfEdge.vertex.toString() else "null"
-    return "HalfEdge(#{v})[prev=(#{p}),next=(#{n}),face=#{f}]"
+    return "HE(#{v})[p=#{p},n=#{n},f=#{f}]"
 
 ### Works as a low-level foundation
 for higher level geometric concepts, like
@@ -129,15 +129,15 @@ exports.HalfEdgeDataStructure = class HalfEdgeDataStructure
     
 exports.Polyhedron = class Polyhedron extends HalfEdgeDataStructure
 
-  constructor : (polygons) ->
-    super()
-
   toString : () ->
     halfEdges = for e in @halfEdges
       e.toString()
-    #halfEdges = []
-    halfEdges = halfEdges.join()
-    return "Polyhedron[#{halfEdges}]"
+    
+    halfEdges = halfEdges.join(",\n  ")
+    if halfEdges.length > 0
+      return "Polyhedron[\n  #{halfEdges}]"
+    else
+      return "Polyhedron[empty]"
 
 
 exports.NefPolyhedron = class NefPolyhedron
@@ -189,7 +189,7 @@ exports.NefPolyhedron = class NefPolyhedron
     throw new Error("Not implemented")
 
   toString : () ->
-    return ""
+    return "Nef[#{@polyhedron.toString()}]"
     
     
 ### A coffeescript port of CGAL's

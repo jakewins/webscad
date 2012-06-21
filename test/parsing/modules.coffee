@@ -19,7 +19,7 @@ test 'parses empty module with params', ->
        new Identifier('ba')],
       new Block)
   ]
-  
+
 test 'parses nested modules', -> 
   assertParsing '''
 module mymodule(a) {
@@ -94,6 +94,23 @@ mymodule(12){
         new ModuleCall(new Identifier('thirdModule'))
       ])
   ]
+
+test 'parses assignment in arguments to module calls', ->
+  assertParsing '''mymodule([1,2],a=[[1],[2,3]]);''', produces [
+    new ModuleCall(
+      new Identifier('mymodule'), 
+      new Arguments([
+        new VectorValue([new NumberValue(1),new NumberValue(2)]),
+        new Assign( new Identifier('a'),
+          new VectorValue([
+            new VectorValue([new NumberValue(1)])
+            new VectorValue([new NumberValue(2),new NumberValue(3)])
+          ])
+        )
+      ])
+    )
+  ]
+  
   
 test 'parses assignment in arguments to module calls', ->
   assertParsing '''mymodule(1+1,a=12);''', produces [

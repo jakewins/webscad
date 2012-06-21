@@ -239,6 +239,10 @@ exports.VectorValue = class VectorValue extends BaseValue
 
   children: ['objects']
 
+  evaluate : ->
+    for obj in @objects
+      obj.evaluate()
+
 
 exports.RangeValue = class RangeValue extends BaseValue
 
