@@ -4,7 +4,6 @@
 {Polyhedron,PolyhedronBuilder} = require "../../src/webscad/geometry"
 
 test "simple cube", ->
-  PolyBuilder
 
   polyhedron = PolyhedronBuilder.fromPolygons [
     [[0,0,0],[1,0,0],[1,1,0]]

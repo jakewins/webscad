@@ -17,6 +17,9 @@ exports.Vertex = class Vertex
 
   constructor:(@x,@y,@z)->
   setHalfEdge:(@halfEdge)->
+
+  toString : () ->
+    return "V[#{@x},#{@y},#{@z}]"
   
   
 ### A face is the area inside a polygon.
@@ -25,6 +28,9 @@ exports.Face = class Face
   
   constructor:( @plane )->
   setHalfEdge:( @halfEdge )->
+
+  toString : () ->
+    return "Face[halfEdge=(#{@halfEdge.vertex.toString()})]"
 
 
 exports.HalfEdge = class HalfEdge
@@ -73,26 +79,28 @@ exports.HalfEdge = class HalfEdge
   # the second one comes with pictures!
   #
   
-  constructor:(@_face, @_vertex)->
+  constructor:(@face, @vertex)->
 
   # Does this halfedge have a face connected?
   isBorder : () -> @_face?
   
-  setPrevious:(@_previous)->
-  previous:()->@_previous
+  setPrevious:(@previous)->
   
-  setNext:(@_next)->
-  next:()->@_next
+  setNext:(@next)->
   
-  setFace:(@_face)->
-  face:()->@_face
+  setFace:(@face)->
   
-  setVertex:(@_vertex)->
-  vertex:()->@_vertex
+  setVertex:(@vertex)->
   
   # The "other" half of the line.
-  setOpposite:(@_opposite)->
-  opposite:()->@_opposite
+  setOpposite:(@opposite)->
+
+  toString : () ->
+    v = if @vertex? then @vertex.toString() else "null"
+    p = if @previous? and @previous.vertex? then @previous.vertex.toString() else "null"
+    n = if @next? and @next.vertex? then @next.vertex.toString() else "null"
+    f = if @face? and @face.halfEdge? and @face.halfEdge.vertex? then @face.halfEdge.vertex.toString() else "null"
+    return "HalfEdge(#{v})[prev=(#{p}),next=(#{n}),face=#{f}]"
 
 ### Works as a low-level foundation
 for higher level geometric concepts, like
@@ -125,7 +133,11 @@ exports.Polyhedron = class Polyhedron extends HalfEdgeDataStructure
     super()
 
   toString : () ->
-    return ""
+    halfEdges = for e in @halfEdges
+      e.toString()
+    #halfEdges = []
+    halfEdges = halfEdges.join()
+    return "Polyhedron[#{halfEdges}]"
 
 
 exports.NefPolyhedron = class NefPolyhedron
@@ -280,7 +292,7 @@ exports.PolyhedronBuilder = class PolyhedronBuilder
       return
     if @firstHalfedge
       @gprime = @lookupHalfedge(@w1, v2)
-      @h1 = @g1 = @gprime.next()
+      @h1 = @g1 = @gprime.next
       @v1 = @w2 = v2
       @firstHalfedge = false
       return
@@ -290,31 +302,31 @@ exports.PolyhedronBuilder = class PolyhedronBuilder
     else
       hprime = @lookupHalfedge @v1,v2
     
-    h2 = hprime.next()
-    prev = @h1.next()
+    h2 = hprime.next
+    prev = @h1.next
     @h1.setNext(h2)
     h2.setPrevious(@h1)
     
     if not @vertexToEdgeMap[@v1]?
-      h2.opposite().setNext( @h1.opposite() )
-      @h1.opposite().setPrevious( h2.opposite() )
+      h2.opposite.setNext( @h1.opposite )
+      @h1.opposite.setPrevious( h2.opposite )
     else
-      b1 = @h1.opposite().isBorder()
-      b2 = h2.opposite().isBorder()
+      b1 = @h1.opposite.isBorder()
+      b2 = h2.opposite.isBorder()
       if b1 and b2
         holeHalfEdge = @lookupHole @v1
-        h2.opposite().setNext(holeHalfEdge.next())
-        holeHalfEdge.next().setPrevious(h2.opposite())
-        holeHalfEdge.setNext( @h1.opposite() )
-        @h1.opposite().setNext(holeHalfEdge)
+        h2.opposite.setNext(holeHalfEdge.next)
+        holeHalfEdge.next.setPrevious(h2.opposite)
+        holeHalfEdge.setNext( @h1.opposite )
+        @h1.opposite.setNext(holeHalfEdge)
       else if b2
-        h2.opposite().setNext(prev)
-        prev.setPrevious(h2.opposite())
+        h2.opposite.setNext(prev)
+        prev.setPrevious(h2.opposite)
       else if b1
-        hprime.setNext( @h1.opposite())
-        @h1.opposite().setPrevious( hprime )
-      else if h2.opposite().next() == @h1.opposite()
-        if @h1.opposite().face() != h2.opposite().face()
+        hprime.setNext( @h1.opposite)
+        @h1.opposite.setPrevious( hprime )
+      else if h2.opposite.next == @h1.opposite
+        if @h1.oppositeface != h2.oppositeface
           throw new Error("Incorrect halfedge structure.")
       else
         if prev != h2
@@ -322,24 +334,24 @@ exports.PolyhedronBuilder = class PolyhedronBuilder
           prev.setPrevious(hprime)
           he = @h1
           first = true
-          while @h1.next() != prev and he != @h1 and not first
+          while @h1.next != prev and he != @h1 and not first
             first = false
             if he.isBorder()
               hole = he
-            he = he.next().opposite()
+            he = he.next.opposite
             
           if he == @h1
             # Disconnected facet complexes
             if hole?
               # The complex can be connected with
               # the hole at hprime.
-              hprime.setNext(hole.next())
-              hole.next().setPrevious(hprime)
+              hprime.setNext(hole.next)
+              hole.next.setPrevious(hprime)
               hole.setNext(prev)
               prev.setPrevious(hole)
             else
               throw new Error("Disconnected facet complexes at vertex #{@v1}")
-    if @h1.vertex() == @indexToVertexMap[@v1]
+    if @h1.vertex == @indexToVertexMap[@v1]
       @vertexToEdgeMap[@v1] = @h1
     
     @h1 = h2
@@ -361,18 +373,18 @@ exports.PolyhedronBuilder = class PolyhedronBuilder
   lookupHalfedge : (startVertexId, endVertexId) ->
     # Pre: 0 <= w,v < new_vertices
     # Case a: It exists an halfedge g from start to end:
-    #     g must be a border halfedge and the facet of g->opposite()
+    #     g must be a border halfedge and the facet of g->opposite
     #     must be set and different from the current facet.
     #     Set the facet of g to the current facet. Return the
     #     halfedge pointing to g.
     # Case b: It exists no halfedge from start to end:
-    #     Create a new pair of halfedges g and g->opposite().
-    #     Set the facet of g to the current facet and g->opposite()
+    #     Create a new pair of halfedges g and g->opposite.
+    #     Set the facet of g to the current facet and g->opposite
     #     to a border halfedge. Assign the vertex references.
-    #     Set g->opposite()->next() to g. Return g->opposite().
+    #     Set g->opposite->next to g. Return g->opposite.
     if @vertexToEdgeMap[startVertexId]?
       he = @vertexToEdgeMap[startVertexId]
-      if @currentFace == he.face()
+      if @currentFace == heface
         throw new Error("Face #{@newFaces} has self-intersection at vertex #{startVertexId}.")
       
       startEdge = he
@@ -381,16 +393,16 @@ exports.PolyhedronBuilder = class PolyhedronBuilder
       while startEdge != he and not first
         first = false
         
-        if he.next().vertex() == endVertex
-          if !he.next().isBorder()
+        if he.next.vertex == endVertex
+          if !he.next.isBorder()
             throw new Error("Face #{@newFaces} shares a halfedge from vertex #{startVertexId} with another face.")
           
-          if @currentFace? and @currentFace == he.next().opposite().face()
+          if @currentFace? and @currentFace == he.next.oppositeface
             throw new Error("Face #{@newFaces} has a self intersection at the halfedge from vertex #{startVertexId} to vertex #{endVertexId}.")
             
-          he.next().setFace(@currentFace)
+          he.next.setFace(@currentFace)
           return he
-        he = he.next().opposite()
+        he = he.next.opposite
     
     # Create new halfedge
     he = @hds.addHalfEdgePair( new HalfEdge(), new HalfEdge())
@@ -398,11 +410,11 @@ exports.PolyhedronBuilder = class PolyhedronBuilder
     
     he.setFace @currentFace
     he.setVertex @indexToVertexMap[startVertexId]
-    he.setPrevious( he.opposite() )
+    he.setPrevious( he.opposite )
     
-    he = he.opposite()
+    he = he.opposite
     he.setVertex(@indexToVertexMap[endVertexId])
-    he.setNext(he.opposite())
+    he.setNext(he.opposite)
     return he
       
   lookupHole : (he) ->
@@ -413,8 +425,8 @@ exports.PolyhedronBuilder = class PolyhedronBuilder
     first = true
     while he != startEdge and not first
       first = false
-      return he if he.next().isBorder()
-      he = he.next().opposite()
+      return he if he.next.isBorder()
+      he = he.next.opposite
       
     throw new Error("A closed surface already exists, yet facet #{@newFaces} is still adjacent.")
     
