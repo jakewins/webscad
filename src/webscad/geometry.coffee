@@ -6,7 +6,7 @@ below is rediculously incorrect. This is kind of a
 learning-by-doing experience.
 ###
 
-DEBUG = false
+DEBUG = true
   
 ### A vertex is a special type of point that
 specifies the beginning or end of a line.
@@ -30,7 +30,15 @@ exports.Face = class Face
   setHalfEdge:( @halfEdge )->
 
   toString : () ->
-    return "Face[halfEdge=(#{@halfEdge.vertex.toString()})]"
+    out = []
+    nextHalfEdge = @halfEdge
+    while nextHalfEdge?
+      prevV = if nextHalfEdge.previous? then nextHalfEdge.previous.vertex else "null"
+      out.push "(#{prevV}->#{nextHalfEdge.vertex})"
+      nextHalfEdge = nextHalfEdge.next
+      break if nextHalfEdge == @halfEdge
+
+    return "Face[" + out.join(" ") + "]"
 
 
 exports.HalfEdge = class HalfEdge
@@ -78,11 +86,14 @@ exports.HalfEdge = class HalfEdge
   # Now go have a cup of coffee and read through those,
   # the second one comes with pictures!
   #
+
+  @IDS = 0
   
   constructor:(@face, @vertex)->
+    @id = HalfEdge.IDS++
 
-  # Does this halfedge have a face connected?
-  isBorder : () -> @_face?
+  # True if no facet is associated with this half edge
+  isBorder : () -> not (@face?)
   
   setPrevious:(@previous)->
   
@@ -130,12 +141,12 @@ exports.HalfEdgeDataStructure = class HalfEdgeDataStructure
 exports.Polyhedron = class Polyhedron extends HalfEdgeDataStructure
 
   toString : () ->
-    halfEdges = for e in @halfEdges
-      e.toString()
+    faces = for f in @faces
+      f.toString()
     
-    halfEdges = halfEdges.join(",\n  ")
-    if halfEdges.length > 0
-      return "Polyhedron[\n  #{halfEdges}]"
+    faces = faces.join(",\n  ")
+    if faces.length > 0
+      return "Polyhedron[\n  #{faces}]"
     else
       return "Polyhedron[empty]"
 
@@ -194,6 +205,52 @@ exports.NefPolyhedron = class NefPolyhedron
     
 ### A coffeescript port of CGAL's
 Polyhedron_incremental_builder_3.
+
+This is used to create Polyhedrons by initially
+defining all vertexes in it, and then listing
+which vertexes make up each face.
+
+There is an important expectation when you use this,
+and it is in what "direction" around a face you list
+vertexes. You can only add an edge from A to B once.
+If you want to add it again (for a second face sharing
+that edge) you need to add it from B to A, eg. reversed.
+
+Lets say you wanted to create this partial polyhedron:
+
+A-----B
+\    / \
+ \  /   \
+  C-----D
+
+If you were to do:
+
+beginFace()
+addVertexToFace(A)
+addVertexToFace(B)
+addVertexToFace(C)
+endFace()
+beginFace()
+addVertexToFace(B)
+addVertexToFace(C)
+addVertexToFace(D)
+endFace()
+
+This would fail, because the builder thinks you want to 
+add the half-edge from B to C twice. You need to tell it
+you want it's opposite half edge, the one from C to B, associated
+with your second face, like so:
+
+beginFace()
+addVertexToFace(A)
+addVertexToFace(B)
+addVertexToFace(C)
+endFace()
+beginFace()
+addVertexToFace(C)
+addVertexToFace(B)
+addVertexToFace(D)
+endFace()
 ###    
 exports.PolyhedronBuilder = class PolyhedronBuilder
 
@@ -203,25 +260,22 @@ exports.PolyhedronBuilder = class PolyhedronBuilder
   @fromPolygons : (polygons) ->
     vertexes = []
     vertexIds = new Grid
-    
-    for polygon in polygons
-      for point in polygon
-        if not vertexIds.has point
-          vertexIds.set point, vertexes.length
-          vertexes.push point
-          
+ 
     builder = new PolyhedronBuilder
     builder.begin()
-    if DEBUG
-      console.log "=== CGAL Surface ==="
+
+    # When we add vertices to the builder, it assigns them
+    # ids incrementally. We need to reverse-lookup vertices
+    # by id later on, so write them down here, incrementally
+    for polygon in polygons
+      for vertex in polygon
+        if not vertexIds.has vertex
+          if DEBUG
+            console.log "Remembering vertex id: #{builder.newVertices} -> ", vertex
+          vertexIds.set vertex, builder.newVertices
+          builder.addVertex vertex
     
     i=0
-    for vertex in vertexes
-      builder.addVertex vertex
-      if DEBUG
-        console.log "#{i++}: ", vertex
-    
-    i=1
     for polygon in polygons
       faceIsDegenerated = false
       fc = {}
@@ -233,20 +287,16 @@ exports.PolyhedronBuilder = class PolyhedronBuilder
           
       if not faceIsDegenerated
         builder.beginFace()
-        
-      if DEBUG
-        console.log "Face #{i++}:"
-      for point in polygon
+      
+      for vertex in polygon
         if not faceIsDegenerated
-          if DEBUG
-            console.log " #{vertexIds.get(point)} (", point, ")"
-          builder.addVertexToFace(vertexIds.get(point))
+          builder.addVertexToFace(vertexIds.get(vertex))
       
       if not faceIsDegenerated
         builder.endFace()
     
     builder.endFace()
-    return builder.getPolygon()
+    return builder.getPolyhedron()
       
   ### A simple API to create half-edge based
   polyhedrons.
@@ -256,9 +306,12 @@ exports.PolyhedronBuilder = class PolyhedronBuilder
   constructor: (hds)->
     @hds = if hds? then hds else new Polyhedron
   
-  getPolygon : ()-> @hds
+  getPolyhedron : ()-> @hds
   
   begin : () ->
+    if DEBUG
+      console.log "=== Build Polyhedron ==="
+
     @indexToVertexMap = {}
     @vertexToEdgeMap = {}
     @newVertices = 0
@@ -272,100 +325,121 @@ exports.PolyhedronBuilder = class PolyhedronBuilder
     
     @hds.addVertex vertex
     
-    @newVertices++
     @indexToVertexMap[@newVertices] = vertex
+    if DEBUG
+      console.log "Vertex: #{@newVertices}: ", vertex
+    @newVertices++
+
     this
     
   beginFace : () ->
-    @firstVertex = true
-    @firstHalfedge = true
-    @lastVertex = false
+
+    if DEBUG
+      console.log "Face #{@hds.faces.length}:"
+
+    @isFirstVertex = true
+    @isFirstHalfedge = true
+    @isLastVertex = false
     
     @currentFace = new Face()
     @hds.addFace( @currentFace )
     this
   
-  addVertexToFace : (v2)->
-    if @firstVertex
-      @w1 = v2
-      @firstVertex = false
+  addVertexToFace : (vertexToAdd)->
+
+    if DEBUG
+      console.log " Vertex #{@indexToVertexMap[vertexToAdd]}"
+
+    if @isFirstVertex
+      @firstVertex = vertexToAdd
+      @isFirstVertex = false
       return
-    if @firstHalfedge
-      @gprime = @lookupHalfedge(@w1, v2)
-      @h1 = @g1 = @gprime.next
-      @v1 = @w2 = v2
-      @firstHalfedge = false
+    if @isFirstHalfedge
+      @firstHalfEdge = @lookupHalfedge(@firstVertex, vertexToAdd)
+      @prevHalfEdge = @firstHalfEdge.next
+      @prevVertex = @secondVertex = vertexToAdd
+      @isFirstHalfedge = false
       return
     
-    if @lastVertex
-      hprime = @gprime
+    if @isLastVertex
+      currentHalfEdge = @firstHalfEdge
     else
-      hprime = @lookupHalfedge @v1,v2
+      currentHalfEdge = @lookupHalfedge @prevVertex,vertexToAdd
     
-    h2 = hprime.next
-    prev = @h1.next
-    @h1.setNext(h2)
-    h2.setPrevious(@h1)
+    nextHalfEdge = currentHalfEdge.next
+    halfEdgeAfterPrevious = @prevHalfEdge.next
+    @prevHalfEdge.setNext(nextHalfEdge)
+    nextHalfEdge.setPrevious(@prevHalfEdge)
     
-    if not @vertexToEdgeMap[@v1]?
-      h2.opposite.setNext( @h1.opposite )
-      @h1.opposite.setPrevious( h2.opposite )
+    #console.log @vertexToEdgeMap, @prevVertex
+    if not @vertexToEdgeMap[@prevVertex]?
+      nextHalfEdge.opposite.setNext( @prevHalfEdge.opposite )
+      @prevHalfEdge.opposite.setPrevious( nextHalfEdge.opposite )
+    
     else
-      b1 = @h1.opposite.isBorder()
-      b2 = h2.opposite.isBorder()
-      if b1 and b2
-        holeHalfEdge = @lookupHole @v1
-        h2.opposite.setNext(holeHalfEdge.next)
-        holeHalfEdge.next.setPrevious(h2.opposite)
-        holeHalfEdge.setNext( @h1.opposite )
-        @h1.opposite.setNext(holeHalfEdge)
-      else if b2
-        h2.opposite.setNext(prev)
-        prev.setPrevious(h2.opposite)
-      else if b1
-        hprime.setNext( @h1.opposite)
-        @h1.opposite.setPrevious( hprime )
-      else if h2.opposite.next == @h1.opposite
-        if @h1.oppositeface != h2.oppositeface
+      prevIsBorder = @prevHalfEdge.opposite.isBorder()
+      nextIsBorder = nextHalfEdge.opposite.isBorder()
+
+      console.log "Next is border: #{nextIsBorder}"
+      console.log "Prev is border: #{prevIsBorder}"
+
+      if prevIsBorder and nextIsBorder
+        holeHalfEdge = @lookupHole @prevVertex
+        nextHalfEdge.opposite.setNext(holeHalfEdge.next)
+        holeHalfEdge.next.setPrevious(nextHalfEdge.opposite)
+        holeHalfEdge.setNext( @prevHalfEdge.opposite )
+        @prevHalfEdge.opposite.setNext(holeHalfEdge)
+      else if nextIsBorder
+        nextHalfEdge.opposite.setNext(halfEdgeAfterPrevious)
+        halfEdgeAfterPrevious.setPrevious(nextHalfEdge.opposite)
+      else if prevIsBorder
+        currentHalfEdge.setNext( @prevHalfEdge.opposite)
+        @prevHalfEdge.opposite.setPrevious( currentHalfEdge )
+      else if nextHalfEdge.opposite.next == @prevHalfEdge.opposite
+        if @prevHalfEdge.opposite.face != nextHalfEdge.opposite.face
           throw new Error("Incorrect halfedge structure.")
       else
-        if prev != h2
-          hprime.setNext(prev)
-          prev.setPrevious(hprime)
-          he = @h1
-          first = true
-          while @h1.next != prev and he != @h1 and not first
-            first = false
+        if halfEdgeAfterPrevious != nextHalfEdge
+          currentHalfEdge.setNext(halfEdgeAfterPrevious)
+          halfEdgeAfterPrevious.setPrevious(currentHalfEdge)
+          he = @prevHalfEdge
+          loop 
             if he.isBorder()
               hole = he
             he = he.next.opposite
+            break unless @prevHalfEdge.next != halfEdgeAfterPrevious and he != @prevHalfEdge
             
-          if he == @h1
+          if he == @prevHalfEdge
             # Disconnected facet complexes
             if hole?
               # The complex can be connected with
-              # the hole at hprime.
-              hprime.setNext(hole.next)
-              hole.next.setPrevious(hprime)
-              hole.setNext(prev)
-              prev.setPrevious(hole)
+              # the hole at currentHalfEdge.
+              currentHalfEdge.setNext(hole.next)
+              hole.next.setPrevious(currentHalfEdge)
+              hole.setNext(halfEdgeAfterPrevious)
+              halfEdgeAfterPrevious.setPrevious(hole)
             else
-              throw new Error("Disconnected facet complexes at vertex #{@v1}")
-    if @h1.vertex == @indexToVertexMap[@v1]
-      @vertexToEdgeMap[@v1] = @h1
+              throw new Error("Disconnected facet complexes at vertex #{@prevVertex}")
+
+    #console.log "HalfEdge.vertex:#{@prevHalfEdge.vertex} == #{@indexToVertexMap[@prevVertex]} (Vertex id #{@prevVertex})"
+    if @prevHalfEdge.vertex == @indexToVertexMap[@prevVertex]
+      @vertexToEdgeMap[@prevVertex] = @prevHalfEdge
     
-    @h1 = h2
-    @v1 = v2
+    @prevHalfEdge = nextHalfEdge
+    @prevVertex = vertexToAdd
+
     this
         
   endFace : () ->
-    @addVertexToFace @w1
-    @lastVertex = true
-    @addVertexToFace @w2
-    he = @vertexToEdgeMap[@w2]
+    @addVertexToFace @firstVertex
+    @isLastVertex = true
+    @addVertexToFace @secondVertex
+    he = @vertexToEdgeMap[@secondVertex]
     @currentFace.setHalfEdge(he)
     @newFaces++
-    return he
+    if DEBUG
+      console.log "/Face he=#{he}"
+    this
   
   end : () ->
     this
@@ -382,38 +456,42 @@ exports.PolyhedronBuilder = class PolyhedronBuilder
     #     Set the facet of g to the current facet and g->opposite
     #     to a border halfedge. Assign the vertex references.
     #     Set g->opposite->next to g. Return g->opposite.
-    if @vertexToEdgeMap[startVertexId]?
+    console.log "Looking up #{@indexToVertexMap[startVertexId]}: " + (if @vertexToEdgeMap[startVertexId]? then @vertexToEdgeMap[startVertexId].id else "none")
+    if @vertexToEdgeMap[startVertexId]? 
+      # Case a, we have a half-edge g pointing to startVertex
       he = @vertexToEdgeMap[startVertexId]
-      if @currentFace == heface
+      
+      # Must not be associated with current face
+      if @currentFace == he.face
         throw new Error("Face #{@newFaces} has self-intersection at vertex #{startVertexId}.")
       
+      # Find half edge starting at g
       startEdge = he
       endVertex = @indexToVertexMap[endVertexId]
-      first = true
-      while startEdge != he and not first
-        first = false
-        
+      loop
+        console.log he.id
         if he.next.vertex == endVertex
           if !he.next.isBorder()
             throw new Error("Face #{@newFaces} shares a halfedge from vertex #{startVertexId} with another face.")
           
-          if @currentFace? and @currentFace == he.next.oppositeface
+          if @currentFace? and @currentFace == he.next.opposite.face
             throw new Error("Face #{@newFaces} has a self intersection at the halfedge from vertex #{startVertexId} to vertex #{endVertexId}.")
             
           he.next.setFace(@currentFace)
           return he
         he = he.next.opposite
+        break if startEdge == he
     
-    # Create new halfedge
+    # Case b, create new halfedge
     he = @hds.addHalfEdgePair( new HalfEdge(), new HalfEdge())
     @newHalfedges += 2
     
     he.setFace @currentFace
-    he.setVertex @indexToVertexMap[startVertexId]
+    he.setVertex @indexToVertexMap[endVertexId]
     he.setPrevious( he.opposite )
     
     he = he.opposite
-    he.setVertex(@indexToVertexMap[endVertexId])
+    he.setVertex(@indexToVertexMap[startVertexId])
     he.setNext(he.opposite)
     return he
       
@@ -429,6 +507,20 @@ exports.PolyhedronBuilder = class PolyhedronBuilder
       he = he.next.opposite
       
     throw new Error("A closed surface already exists, yet facet #{@newFaces} is still adjacent.")
+
+  currentFaceStateToString : ->
+    if @isFirstVertex then return ""
+    if @isFirstHalfedge then return "(none)"
+    out = []
+    nextHalfEdge = @firstHalfEdge
+    while nextHalfEdge?
+      prevV = if nextHalfEdge.previous? then nextHalfEdge.previous.vertex else "null"
+      out.push " (#{prevV}-[#{nextHalfEdge.id}]->#{nextHalfEdge.vertex})"
+      nextHalfEdge = nextHalfEdge.next
+      break if nextHalfEdge == @firstHalfEdge
+
+    return out.join("")
+      
     
     
 ### A lookup table with an arbitrary number of dimensions,

@@ -40,6 +40,13 @@ option '-p', '--prefix [DIR]', 'set the installation prefix for `cake install`'
 task 'build', 'build WebSCAD from source', ->
   run ['-c', '-o', 'lib', 'src']
 
+  # Wrap Three.js in module syntax
+  fs.writeFileSync 'lib/Three_module.js', """
+    var window = exports;
+    #{fs.readFileSync "lib/Three.js"}
+    exports.Three = THREE;
+  """
+
 
 task 'build:full', 'rebuild the source twice, and run the tests', ->
   exec 'bin/cake build && bin/cake build && bin/cake test', (err, stdout, stderr) ->
@@ -58,7 +65,8 @@ task 'build:parser', 'rebuild the Jison parser (run build first)', ->
 
 task 'build:browser', 'rebuild the merged script for inclusion in the browser', ->
   code = ''
-  for name in ['helpers', 'lexer', 'parser','tree','geometry','csg','ast','builtins','scad','render']
+
+  for name in ['helpers', 'lexer', 'parser','tree','geometry','csg','ast','builtins','scad','threerender']
     code += """
       require['./#{name}'] = new function() {
         var exports = this;
@@ -66,10 +74,13 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
       };
     """
   code = """
-    this.WebSCAD = (function() {
+    this.webscad = (function() {
       function require(path){ return require[path]; }
       #{code}
-      return require['./render']
+      return {
+        'Scad' : require['./scad'].Scad,
+        'ThreeRenderer' : require['./threerenderer'].ThreeRenderer
+      }
     })();
   """
   unless process.env.MINIFY is 'false'
@@ -109,7 +120,7 @@ walk = (dir, done) ->
     next 0
 
 # Run the test suite.
-runTests = (CoffeeScript) ->
+runTests = (CoffeeScript, testDescription) ->
   startTime   = Date.now()
   currentFile = null
   passedTests = 0
@@ -132,13 +143,14 @@ runTests = (CoffeeScript) ->
 
   # Our test helper function for delimiting different test cases.
   global.test = (description, fn) ->
-    try
-      fn.test = {description, currentFile}
-      fn.call(fn)
-    catch e
-      e.description = description if description?
-      e.source      = fn.toString() if fn.toString?
-      failures.push file: currentFile, error: e
+    if testDescription == undefined or description == testDescription
+      try
+        fn.test = {description, currentFile}
+        fn.call(fn)
+      catch e
+        e.description = description if description?
+        e.source      = fn.toString() if fn.toString?
+        failures.push file: currentFile, error: e
 
   # A recursive functional equivalence helper; uses egal for testing equivalence.
   # See http://wiki.ecmascript.org/doku.php?id=harmony:egal
@@ -187,7 +199,7 @@ runTests = (CoffeeScript) ->
 
 
 task 'test', 'run the full test suite', ->
-  runTests CoffeeScript
+  runTests CoffeeScript, 'Can build simple polyhedron'
 
 
 task 'test:browser', 'run the test suite against the merged browser script', ->
