@@ -42,7 +42,7 @@ task 'build', 'build WebSCAD from source', ->
 
   # Wrap Three.js in module syntax
   fs.writeFileSync 'lib/Three_module.js', """
-    var window = exports;
+    var self = window = exports;
     #{fs.readFileSync "lib/Three.js"}
     exports.Three = THREE;
   """
@@ -78,14 +78,14 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
       function require(path){ return require[path]; }
       #{code}
       return {
-        'Scad' : require['./scad'].Scad,
-        'ThreeRenderer' : require['./threerenderer'].ThreeRenderer
+        'Scad' : require('./scad').Scad,
+        'ThreeRenderer' : require('./threerender').ThreeRenderer
       }
     })();
   """
-  unless process.env.MINIFY is 'false'
-    {parser, uglify} = require 'uglify-js'
-    code = uglify.gen_code uglify.ast_squeeze uglify.ast_mangle parser.parse code
+  #unless process.env.MINIFY is 'false'
+  #  {parser, uglify} = require 'uglify-js'
+  #  code = uglify.gen_code uglify.ast_squeeze uglify.ast_mangle parser.parse code
   fs.writeFileSync 'extras/webscad.js', header + '\n' + code
   console.log "built ... running browser tests:"
   invoke 'test:browser'
@@ -199,7 +199,7 @@ runTests = (CoffeeScript, testDescription) ->
 
 
 task 'test', 'run the full test suite', ->
-  runTests CoffeeScript, 'Can build simple polyhedron'
+  runTests CoffeeScript#, 'parses and renders simple cube'
 
 
 task 'test:browser', 'run the test suite against the merged browser script', ->

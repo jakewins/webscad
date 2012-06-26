@@ -6,7 +6,7 @@ below is rediculously incorrect. This is kind of a
 learning-by-doing experience.
 ###
 
-DEBUG = true
+DEBUG = false
   
 ### A vertex is a special type of point that
 specifies the beginning or end of a line.
@@ -225,32 +225,32 @@ A-----B
 
 If you were to do:
 
-beginFace()
-addVertexToFace(A)
-addVertexToFace(B)
-addVertexToFace(C)
-endFace()
-beginFace()
-addVertexToFace(B)
-addVertexToFace(C)
-addVertexToFace(D)
-endFace()
+    beginFace()
+    addVertexToFace(A)
+    addVertexToFace(B)
+    addVertexToFace(C)
+    endFace()
+    beginFace()
+    addVertexToFace(B)
+    addVertexToFace(C)
+    addVertexToFace(D)
+    endFace()
 
 This would fail, because the builder thinks you want to 
 add the half-edge from B to C twice. You need to tell it
 you want it's opposite half edge, the one from C to B, associated
 with your second face, like so:
 
-beginFace()
-addVertexToFace(A)
-addVertexToFace(B)
-addVertexToFace(C)
-endFace()
-beginFace()
-addVertexToFace(C)
-addVertexToFace(B)
-addVertexToFace(D)
-endFace()
+    beginFace()
+    addVertexToFace(A)
+    addVertexToFace(B)
+    addVertexToFace(C)
+    endFace()
+    beginFace()
+    addVertexToFace(C)
+    addVertexToFace(B)
+    addVertexToFace(D)
+    endFace()
 ###    
 exports.PolyhedronBuilder = class PolyhedronBuilder
 
@@ -288,14 +288,14 @@ exports.PolyhedronBuilder = class PolyhedronBuilder
       if not faceIsDegenerated
         builder.beginFace()
       
-      for vertex in polygon
+      for point in polygon
         if not faceIsDegenerated
-          builder.addVertexToFace(vertexIds.get(vertex))
+          builder.addVertexToFace(vertexIds.get(point))
       
       if not faceIsDegenerated
         builder.endFace()
     
-    builder.endFace()
+    builder.end()
     return builder.getPolyhedron()
       
   ### A simple API to create half-edge based
@@ -380,8 +380,8 @@ exports.PolyhedronBuilder = class PolyhedronBuilder
       prevIsBorder = @prevHalfEdge.opposite.isBorder()
       nextIsBorder = nextHalfEdge.opposite.isBorder()
 
-      console.log "Next is border: #{nextIsBorder}"
-      console.log "Prev is border: #{prevIsBorder}"
+      #console.log "Next is border: #{nextIsBorder}"
+      #console.log "Prev is border: #{prevIsBorder}"
 
       if prevIsBorder and nextIsBorder
         holeHalfEdge = @lookupHole @prevVertex
@@ -409,6 +409,8 @@ exports.PolyhedronBuilder = class PolyhedronBuilder
             he = he.next.opposite
             break unless @prevHalfEdge.next != halfEdgeAfterPrevious and he != @prevHalfEdge
             
+          #console.log @currentFaceStateToString()
+
           if he == @prevHalfEdge
             # Disconnected facet complexes
             if hole?
@@ -439,6 +441,7 @@ exports.PolyhedronBuilder = class PolyhedronBuilder
     @newFaces++
     if DEBUG
       console.log "/Face he=#{he}"
+      console.log @currentFace.toString()
     this
   
   end : () ->
@@ -456,7 +459,7 @@ exports.PolyhedronBuilder = class PolyhedronBuilder
     #     Set the facet of g to the current facet and g->opposite
     #     to a border halfedge. Assign the vertex references.
     #     Set g->opposite->next to g. Return g->opposite.
-    console.log "Looking up #{@indexToVertexMap[startVertexId]}: " + (if @vertexToEdgeMap[startVertexId]? then @vertexToEdgeMap[startVertexId].id else "none")
+    #console.log "Looking up #{@indexToVertexMap[startVertexId]}: " + (if @vertexToEdgeMap[startVertexId]? then @vertexToEdgeMap[startVertexId].id else "none")
     if @vertexToEdgeMap[startVertexId]? 
       # Case a, we have a half-edge g pointing to startVertex
       he = @vertexToEdgeMap[startVertexId]
@@ -469,7 +472,6 @@ exports.PolyhedronBuilder = class PolyhedronBuilder
       startEdge = he
       endVertex = @indexToVertexMap[endVertexId]
       loop
-        console.log he.id
         if he.next.vertex == endVertex
           if !he.next.isBorder()
             throw new Error("Face #{@newFaces} shares a halfedge from vertex #{startVertexId} with another face.")

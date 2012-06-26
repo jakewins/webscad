@@ -38,14 +38,20 @@ exports.Cube = class Cube extends CsgNode
       x2 = @x
       y2 = @y
       z2 = @z
+
+    # Bottom vertexes
+    [v0,v1,v2,v3] = [[x1,y1,z1],[x2,y1,z1],[x2,y2,z1],[x1,y2,z1]]
+      
+    # Top vertexes
+    [v4,v5,v6,v7] = [[x1,y1,z2],[x2,y1,z2],[x2,y2,z2],[x1,y2,z2]]
   
     polygons = [
-      [[x1,y1,z2],[x2,y1,z2],[x2,y2,z2],[x1,y2,z2]]
-      [[x1,y2,z1],[x2,y2,z1],[x2,y1,z1],[x1,y1,z1]]
-      [[x1,y1,z1],[x2,y1,z1],[x2,y1,z2],[x1,y1,z2]]
-      [[x2,y1,z1],[x2,y2,z1],[x2,y2,z2],[x2,y1,z2]]
-      [[x2,y2,z1],[x1,y2,z1],[x1,y2,z2],[x2,y2,z2]]
-      [[x1,y2,z1],[x1,y1,z1],[x1,y1,z2],[x1,y2,z2]]
+      [v0,v1,v2,v3] # Bottom
+      [v7,v6,v5,v4] # Top
+      [v0,v4,v5,v1] # Side A
+      [v3,v7,v4,v0] # Side B
+      [v2,v6,v7,v3] # Sice C
+      [v1,v5,v6,v2] # Side D
     ]
 
     new NefPolyhedron PolyhedronBuilder.fromPolygons polygons

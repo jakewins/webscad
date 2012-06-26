@@ -2,9 +2,10 @@
 {ThreeRenderer, ThreeGeometryBuilder, ScadFaceToThreeFacesConverter} = require "../../lib/webscad/threerender"
 {Three} = require "../../lib/Three_module"
 {NefPolyhedron,PolyhedronBuilder} = require "../../src/webscad/geometry"
+{Scad} = require "../../lib/webscad/scad"
 
 threeRenderer = new ThreeRenderer
-faceConverter = new ScadFaceToThreeFacesConverter
+scad = new Scad
 
 producesGeometry = (expectedGeometry) ->
   verify = (nefPoly) ->
@@ -24,38 +25,39 @@ producesGeometry = (expectedGeometry) ->
 assertRendering = (nefPoly, verify) ->
   verify nefPoly
 
-test 'can convert half edge structure face to triangles', ->
+test 'can convert half edge structure to three geometry', ->
   
-  poly = PolyhedronBuilder.fromPolygons [
-    [[0,0,1],[1,0,1],[1,1,1],[0,1,1]]
-    [[0,1,0],[1,1,0],[1,0,0],[0,0,0]]
-    [[0,0,0],[1,0,0],[1,0,1],[0,0,1]]
-    [[1,0,0],[1,1,0],[1,1,1],[1,0,1]]
-    [[1,1,0],[0,1,0],[0,1,1],[1,1,1]]
-    [[0,1,0],[0,0,0],[0,0,1],[0,1,1]]
+  #  0,2,0   C   2,2,0
+  #      \      /     
+  #  B    1,1,2      D
+  #      /      \ 
+  #  0,0,0   A   2,0,0
+  v0 = [0,0,0]
+  v1 = [2,0,0]
+  v2 = [2,2,0]
+  v3 = [0,2,0]
+  v4 = [1,1,2]
+  
+  polygons = [
+    [v0,v1,v2,v3] # Bottom
+    [v1,v0,v4] # Side A
+    [v0,v3,v4] # Side B
+    [v3,v2,v4] # Side C
+    [v2,v1,v4] # Side D
   ]
 
-  console.log poly.faces
+  poly = PolyhedronBuilder.fromPolygons(polygons)
 
-  faceConverter.convert(face)
+  geometry = threeRenderer.render(new NefPolyhedron(poly))
+
+  eq geometry.vertices.length, 5
   
 
-test 'renders simple cube', ->
+test 'parses and renders simple cube', ->
   
-  nefPoly = new NefPolyhedron(PolyhedronBuilder.fromPolygons [
-    [[0,0,1],[1,0,1],[1,1,1],[0,1,1]]
-    [[0,1,0],[1,1,0],[1,0,0],[0,0,0]]
-    [[0,0,0],[1,0,0],[1,0,1],[0,0,1]]
-    [[1,0,0],[1,1,0],[1,1,1],[1,0,1]]
-    [[1,1,0],[0,1,0],[0,1,1],[1,1,1]]
-    [[0,1,0],[0,0,0],[0,0,1],[0,1,1]]
-  ])
+  geometry = threeRenderer.render(scad.evalCsg("cube(size=2,center=false)"))
 
-  #geometry = ThreeGeometryBuilder.fromTriangles [
-  #  [[0,0,1],[1,0,1],[1,1,1]]
-  #  [[0,0,1],[[0,1,1]]
-  #]
-
-  #assertRendering nefPoly, producesGeometry([])
+  eq geometry.vertices.length, 8
+  eq geometry.faces.length, 6
 
   

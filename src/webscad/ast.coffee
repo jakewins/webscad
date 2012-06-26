@@ -262,6 +262,8 @@ exports.Comment = class Comment extends AstNode
     
   toString: (idt = '', name = @constructor.name) ->
     '\n' + idt + name + ' "' + @comment + '"'
+  
+  evaluate: ->
     
 #### Arguments
 
@@ -418,10 +420,8 @@ exports.Code = class Code extends AstNode
   traverseChildren: (crossScope, func) ->
     super(crossScope, func) if crossScope
 
-#### Op
+#### Arithmetics
 
-# Simple Arithmetic and logical operations. Performs some conversion from
-# CoffeeScript operations into their JavaScript equivalents.
 exports.Op = class Op extends AstNode
   constructor: (op, first, second, flip ) ->
     @operator = op

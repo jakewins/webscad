@@ -92,10 +92,6 @@ exports.Scad = class Scad
       csgTree = @evalAst csgTree
     
     csgTree.evaluate()
-    
-  render : (nefPolyhedron) ->
-    if typeof nefPolyhedron is 'string' or nefPolyhedron not instanceof NefPolyhedron
-      nefPolyhedron = @evalCsg nefPolyhedron
       
     
     
