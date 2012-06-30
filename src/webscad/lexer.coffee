@@ -47,11 +47,11 @@ exports.Lexer = class Lexer
     i = 0
     while @chunk = code.slice i
       i += @useOrIncludeToken() or
-           @identifierToken() or
-           @commentToken()    or
-           @whitespaceToken() or
-           @stringToken()     or
-           @numberToken()     or
+           @identifierToken()   or
+           @commentToken()      or
+           @whitespaceToken()   or
+           @stringToken()       or
+           @numberToken()       or
            @literalToken()
 
     return @tokens
@@ -152,6 +152,7 @@ exports.Lexer = class Lexer
   terminatorToken: ->
     if @tag() isnt 'TERMINATOR' and @tokens.length > 0
       @token 'TERMINATOR', '\n'
+    @line += 1
     this
 
   # We treat all other single characters as a token. E.g.: `( ) , . !`

@@ -6,45 +6,55 @@
     <script type="text/javascript" src="../../extras/Three.js"></script>
     <script type="text/javascript" src="../../extras/webscad.js"></script>
     <script type="text/javascript">
-    var renderer = scene = camera = currentGeometry = null;
+    // This is really messy, because it's used as a playground.
+    // TODO: Build a proper example environment to work in.
+    var renderer = scene = camera = currentGeometry = cubeGeometry = null;
     window.scad = new webscad.Scad();
     window.scadToThreeConverter = new webscad.ThreeRenderer();
 
     window.onload = function() {
             
-            renderer = new THREE.CanvasRenderer();
-            renderer.setSize( 500, 400 );
-            document.getElementById('output-wrap').appendChild( renderer.domElement );
+      renderer = new THREE.CanvasRenderer();
+      renderer.setSize( 500, 400 );
+      document.getElementById('output-wrap').appendChild( renderer.domElement );
 
-            scene = new THREE.Scene();
+      scene = new THREE.Scene();
 
-            camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 1000 );
-            camera.position.y = 150;
-            camera.position.z = 500;
-            scene.add( camera );
+      camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 1000 );
+      camera.position.y = 150;
+      camera.position.z = 500;
+      scene.add( camera );
 
-            // Light
+      // Light
 
-            var light = new THREE.PointLight( 0xFFFF00 );
-            light.position.set( 10, 0, 10 );
-            scene.add( light );
+      var light = new THREE.PointLight( 0xFFFF00 );
+      light.position.set( 10, 0, 10 );
+      scene.add( light );
 
-				    // Cube
+      // Materials
+      var materials = [];
+      for ( var i = 0; i < 6; i ++ ) {
 
-				    var materials = [];
+			  materials.push( new THREE.MeshBasicMaterial( { color: Math.random() * 0xffffff } ) );
 
-				    for ( var i = 0; i < 6; i ++ ) {
+		  }
 
-					    materials.push( new THREE.MeshBasicMaterial( { color: Math.random() * 0xffffff } ) );
+      cubeGeometry = new THREE.CubeGeometry( 200, 200, 200, 1, 1, 1, materials );
+		  cube = new THREE.Mesh(cubeGeometry, new THREE.MeshFaceMaterial() );
+		  cube.position.y = 150;
+		  cube.rotation.y = 0.5;
+		  //scene.add( cube );
 
-				    }
-
+      document.getElementById("scad-input").addEventListener('keydown', onKeyDownInEditor);
+      render(document.getElementById("scad-input").value);
+      animate();
     };
     
     function render(text) {
       if(currentGeometry !== null) {
         scene.remove(currentGeometry);
       }
+      document.getElementById('error-console').innerHTML = ""
 
       try {
         // Compile & Run
@@ -53,20 +63,64 @@
 
         // Render
         console.log("Rendering..")
+        var scadGeometry = scadToThreeConverter.render(polyhedron);
         currentGeometry = new THREE.Mesh(
-            scadToThreeConverter.render(polyhedron),
+            scadGeometry,
             new THREE.MeshFaceMaterial()
         );
-        currentGeometry.position.y = 150;
+        currentGeometry.position.y = 200;
         currentGeometry.rotation.y = 0.5;
 
 	      scene.add( currentGeometry );
 
         renderer.render(scene, camera);
       } catch(e) {
-        console.log(e);
+        document.getElementById('error-console').innerHTML = e;
       }
+
+      dumpGeometry(scadGeometry);
+      dumpGeometry(cubeGeometry);
     };
+
+    function onKeyDownInEditor(ev)
+    {
+      if(ev.which === 13 && ev.ctrlKey)
+      {
+        ev.stopPropagation();
+        render(document.getElementById("scad-input").value);
+      }
+    }
+
+    function dumpGeometry(geometry)
+    {
+      console.log(geometry);
+      if(typeof(geometry) !== "undefined")
+      {
+        for(var i=0,l=geometry.vertices.length;i<l;i++)
+        {
+          var v=geometry.vertices[i];
+          console.log(" V[" + v.x + "," + v.y + "," + v.z + "]");
+        }
+      }
+    }
+
+    function animate() {
+
+			requestAnimationFrame( animate );
+
+			renderAnimation();
+
+		}
+
+		function renderAnimation() {
+
+      if(currentGeometry != null)
+      {
+			  currentGeometry.rotation.y += 0.01;
+			  renderer.render( scene, camera );
+      }
+		}
+
     </script>
     
     <style>
@@ -74,13 +128,17 @@
       float:left;
       width:48%;
     }
-      #scad-input {
-        width:98%;
-        height:400px;
-      }
+    #scad-input {
+      width:98%;
+      height:400px;
+    }
     #output-wrap {
       float:left;
       width:48%;
+    }
+    #error-console {
+      font-family:monospace;
+      color:#881111;
     }
     </style>
     
@@ -88,8 +146,9 @@
 
   <body>
     <div id='input-wrap'>
-      <textarea id='scad-input'>cube(size=100,center=false)</textarea>
-      <input type="button" onclick='render(document.getElementById("scad-input").value)' value='render' />
+      <textarea id='scad-input'>cube(size=200,center=true)</textarea>
+      <input type="button" onclick='render(document.getElementById("scad-input").value)' value='render (CTRL+ENTER)' />
+      <p id='error-console'></p>
     </div>
     <div id='output-wrap'>
     
