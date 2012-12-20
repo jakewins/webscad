@@ -5,7 +5,7 @@
 
 # Import the helpers we plan to use.
 {compact, flatten, extend, merge, del, starts, ends, last} = require './helpers'
-csg = require './csg'
+
 {TreeNode} = require './tree'
 
 exports.extend = extend  # for parser
@@ -150,7 +150,7 @@ exports.Block = class Block extends AstNode
       else
         statement.evaluate ctx
     
-    new csg.Union(children)
+    children
 
 #### Value
 

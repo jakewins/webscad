@@ -13,8 +13,8 @@ is done, and the infrastructure for the CSG tree.
 Usage
 -----
 
-npm install
-cake test
+    npm install
+    cake test
 
 Architecture overview:
 ----------------------

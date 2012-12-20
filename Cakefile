@@ -40,16 +40,16 @@ option '-p', '--prefix [DIR]', 'set the installation prefix for `cake install`'
 task 'build', 'build WebSCAD from source', ->
   run ['-c', '-o', 'lib', 'src']
 
-  # Wrap Three.js in module syntax
-  fs.writeFileSync 'lib/Three_module.js', """
+  # Wrap csg.js in module syntax
+  fs.writeFileSync 'lib/csg_module.js', """
     var self = window = exports;
-    #{fs.readFileSync "lib/Three.js"}
+    #{fs.readFileSync "lib/csg.js"}
     exports.Three = THREE;
   """
 
 
 task 'build:full', 'rebuild the source twice, and run the tests', ->
-  exec 'bin/cake build && bin/cake build && bin/cake test', (err, stdout, stderr) ->
+  exec 'cake build && cake build && cake test', (err, stdout, stderr) ->
     console.log stdout.trim() if stdout
     console.log stderr.trim() if stderr
     throw err    if err

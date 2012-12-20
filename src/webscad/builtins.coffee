@@ -1,6 +1,6 @@
 
 
-csg = require './csg'
+#csg = require 'csg'
 ast = require './ast'
 
 exports.UnimplementedModule = class UnimplementedModule extends ast.Module
@@ -19,7 +19,7 @@ class CubeModule extends ast.Module
              new ast.Identifier('center') ])
   
   evaluate : (ctx, submodules) ->
-    new csg.Cube(ctx.getVar('size'),ctx.getVar('center'))
+    new csg.Cube(ctx.getVar('size'), ctx.getVar('center'))
 
 
 exports.modules = 

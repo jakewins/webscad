@@ -3,8 +3,6 @@
 {extend} = require "./helpers"
 
 astNodes = require './ast'
-csgNodes = require './csg'
-{NefPolyhedron} = require './geometry'
 
 # Build ins
 builtin = require './builtins'
@@ -82,16 +80,6 @@ exports.Scad = class Scad
       
     call = new astNodes.ModuleCall()
     ast.evaluate(ctx, call)
-   
-  ###
-  Evaluate a CSG tree, yielding the final 3d output
-  in the form of a NefPolyhedron object.
-  ### 
-  evalCsg : (csgTree) ->
-    if typeof csgTree is 'string' or csgTree not instanceof csgNodes.CsgNode
-      csgTree = @evalAst csgTree
-    
-    csgTree.evaluate()
       
     
     
