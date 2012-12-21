@@ -74,12 +74,15 @@ exports.Scad = class Scad
     if typeof ast is 'string' or ast not instanceof astNodes.AstNode
       ast = @parse ast
     
+    # The root node is always a union
+    
     ctx = new astNodes.Context
     ctx._modules = builtin.modules
     ctx._functions = builtin.functions
       
-    call = new astNodes.ModuleCall()
-    ast.evaluate(ctx, call)
+    call = new astNodes.ModuleCall({name:'union'}, new astNodes.Arguments(), [ast])
+    
+    ast.evaluate(ctx)
       
     
     

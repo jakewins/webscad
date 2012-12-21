@@ -183,7 +183,7 @@ grammar =
       $2.setIsInBackground(true)
     o '* ModuleCall', ->
       $2.setIsIgnored(true)
-    o 'Identifier Arguments ModuleCalls',   -> new ModuleCall $1, $2, $3
+    o 'Identifier Arguments ModuleCalls',            -> new ModuleCall $1, $2, $3
   ]
   
   # Child module invocations, this is the "block statement"

@@ -44,7 +44,7 @@ task 'build', 'build WebSCAD from source', ->
   fs.writeFileSync 'lib/csg_module.js', """
     var self = window = exports;
     #{fs.readFileSync "lib/csg.js"}
-    exports.Three = THREE;
+    exports.CSG = CSG;
   """
 
 
@@ -66,7 +66,7 @@ task 'build:parser', 'rebuild the Jison parser (run build first)', ->
 task 'build:browser', 'rebuild the merged script for inclusion in the browser', ->
   code = ''
 
-  for name in ['helpers', 'lexer', 'parser','tree','geometry','csg','ast','builtins','scad','threerender']
+  for name in ['helpers', 'lexer', 'parser','tree','geometry','csg','ast','builtins','scad']
     code += """
       require['./#{name}'] = new function() {
         var exports = this;
@@ -78,8 +78,7 @@ task 'build:browser', 'rebuild the merged script for inclusion in the browser', 
       function require(path){ return require[path]; }
       #{code}
       return {
-        'Scad' : require('./scad').Scad,
-        'ThreeRenderer' : require('./threerender').ThreeRenderer
+        'Scad' : require('./scad').Scad
       }
     })();
   """
