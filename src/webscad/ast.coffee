@@ -69,6 +69,9 @@ exports.AstNode = class AstNode extends TreeNode
     node = this
     continue until node is node = node.unwrap()
     node
+    
+  evaluate : ->
+    throw new Error(this + " does not yet have an evaluate method :(")
 
   isStatement     : NO
   isComplex       : YES
@@ -146,11 +149,11 @@ exports.Block = class Block extends AstNode
     children = []
     for statement in @statements
       if statement instanceof ModuleCall
-        children.push statement.evaluate ctx
+        children.push statement
       else
         statement.evaluate ctx
     
-    children
+    new ModuleCall({name:'union'}, new Arguments, children).evaluate(ctx)
 
 #### Value
 
@@ -201,6 +204,9 @@ exports.Identifier = class Identifier extends AstNode
   
   toString: (idt = '', name = @constructor.name) ->
     super(idt,name) + ' "' + @name + '"'
+    
+  evaluate : (ctx) ->
+    return ctx.getVar(@name)
 
 exports.BaseValue = class BaseValue extends AstNode
   constructor: (@value) ->
@@ -284,7 +290,7 @@ exports.Arguments = class Arguments extends AstNode
   
   evaluate : (ctx, propNames) ->
     for i in [0...propNames.length]
-      propName = propNames[i].name
+      propName = propNames[i]
       if i < @posArgs.length
         val = @posArgs[i]
       else
@@ -337,14 +343,15 @@ exports.ModuleCall = class ModuleCall extends AstNode
     
   evaluate: (ctx)->
     
+    ctx = new Context(ctx)
+  
     childCalls = for child in @subModules
       child.evaluate ctx
     
-    ctx = new Context(ctx)
-    
     module = ctx.getModule(@name)
     @args.evaluate ctx, module.params
-    module.evaluate ctx, childCalls
+    
+    module(ctx, childCalls)
 
 #### MemberAccess
 
@@ -392,6 +399,13 @@ exports.Module = class Module extends AstNode
     # no-op
 
   children: ['name', 'params', 'body']
+  
+  evaluate : (ctx)->
+    body = @body
+    func = (runtimeCtx, subModules) ->
+      body.evaluate(runtimeCtx)
+    func.params = [param.name for param in @params]
+    ctx.addModule @name.name, func
 
 
 #### Assign

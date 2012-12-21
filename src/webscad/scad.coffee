@@ -79,8 +79,6 @@ exports.Scad = class Scad
     ctx = new astNodes.Context
     ctx._modules = builtin.modules
     ctx._functions = builtin.functions
-      
-    call = new astNodes.ModuleCall({name:'union'}, new astNodes.Arguments(), [ast])
     
     ast.evaluate(ctx)
       

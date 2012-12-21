@@ -174,9 +174,7 @@
     var scad = new webscad.Scad();
     
     function render(text) {
-      var csg = scad.evalAst(text)[0];
-      console.log(csg);
-      
+      var csg = scad.evalAst(text);
       var viewer = new Viewer(csg, 400, 400, 5); 
       
       var el = document.getElementById("output-wrap");
