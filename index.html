@@ -1,1 +1,219 @@
-WebSCAD Github Page
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>WebSCAD Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="Jacob Hansson">
+
+    <!-- Le styles -->
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/bootstrap-responsive.css" rel="stylesheet">
+    <link  href="codemirror/codemirror.css" rel="stylesheet">
+    
+    <style>
+
+    /* GLOBAL STYLES
+    -------------------------------------------------- */
+    /* Padding below the footer and lighter body text */
+
+    body {
+      padding-bottom: 40px;
+      color: #5a5a5a;
+    }
+
+    /* CUSTOMIZE THE NAVBAR
+    -------------------------------------------------- */
+
+    .brand {
+      color: #efefef !important;
+    }
+
+    /* Special class on .container surrounding .navbar, used for positioning it into place. */
+    .navbar-wrapper {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      margin-top: 20px;
+      margin-bottom: -90px; /* Negative margin to pull up carousel. 90px is roughly margins and height of navbar. */
+    }
+    .navbar-wrapper .navbar {
+
+    }
+
+    /* Remove border and change up box shadow for more contrast */
+    .navbar .navbar-inner {
+      border: 0;
+      -webkit-box-shadow: 0 2px 10px rgba(0,0,0,.25);
+         -moz-box-shadow: 0 2px 10px rgba(0,0,0,.25);
+              box-shadow: 0 2px 10px rgba(0,0,0,.25);
+    }
+
+    /* Downsize the brand/project name a bit */
+    .navbar .brand {
+      padding: 14px 20px 16px; /* Increase vertical padding to match navbar links */
+      font-size: 16px;
+      font-weight: bold;
+      text-shadow: 0 -1px 0 rgba(0,0,0,.5);
+    }
+
+    /* Navbar links: increase padding for taller navbar */
+    .navbar .nav > li > a {
+      padding: 15px 20px;
+    }
+
+    /* Offset the responsive button for proper vertical alignment */
+    .navbar .btn-navbar {
+      margin-top: 10px;
+    }
+
+    /* RENDER AREA
+    --------------------- */
+    
+    #render-area {
+      position:absolute;
+      top:0;
+      right:0;
+      bottom:0;
+      width: 64%;
+      
+      background:#efefef;
+      
+      border-left: 1px solid #ddd;
+    }
+    
+    /* SIDEBAR
+    ----------------- */
+    
+    #sidebar {
+      margin-top: 60px;
+      width: 36%;
+    }
+    
+    #sidebar .row {
+      margin: 0 15px 15px;
+    }
+    
+    #editor {
+      height: 500px;
+      border: 1px solid #eee;
+      padding: 5px;
+      border-radius:4px;
+      margin: 0 0 10px;
+    }
+    
+    footer {
+      padding: 0 20px;
+    }
+
+    </style>
+
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <!-- Fav and touch icons -->
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="../assets/ico/apple-touch-icon-144-precomposed.png">
+    <link rel="apple-touch-icon-precomposed" sizes="114x114" href="../assets/ico/apple-touch-icon-114-precomposed.png">
+      <link rel="apple-touch-icon-precomposed" sizes="72x72" href="../assets/ico/apple-touch-icon-72-precomposed.png">
+                    <link rel="apple-touch-icon-precomposed" href="../assets/ico/apple-touch-icon-57-precomposed.png">
+                                   <link rel="shortcut icon" href="../assets/ico/favicon.png">
+  </head>
+
+  <body>
+
+    <!-- NAVBAR
+    ================================================== -->
+    <div class="navbar navbar-inverse navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container">
+          <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </a>
+          <a class="brand" href="#">WebSCAD</a>
+          <div class="nav-collapse collapse">
+            <ul class="nav">
+              <li><a href="http://github.com/jakewins/webscad">Source code</a></li>
+              <li><a href="http://en.wikibooks.org/wiki/OpenSCAD_User_Manual/The_OpenSCAD_Language">SCAD Documentation</a></li>
+            </ul>
+          </div><!--/.nav-collapse -->
+        </div>
+      </div>
+    </div>
+
+
+    <div id="render-area">
+      
+    </div>
+
+    <div class="container pull-left" id="sidebar">
+      
+      <div class="row">
+        <h3>Try WebSCAD!</h3>
+        <div id="editor"></div>
+        <p><a class="btn btn-primary pull-right" onclick='render();'>Render »</a></p>
+      </div><!-- /.row -->
+
+      <!-- FOOTER -->
+      <footer>
+        <p>This is still a work in progress, with many missing features. If you don't see anything when you press render, your browser may not have 3D support. Try using the latest version of Firefox or Google Chrome for best results.</p>
+        <p>&copy; 2012 Jacob Hansson</p>
+      </footer>
+
+    </div><!-- /.container -->
+
+
+
+    <!-- Le Javascript
+    ================================================== -->
+    <script src="js/jquery.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="codemirror/codemirror.js"></script>
+    <script src="codemirror/mode/javascript/javascript.js"></script>
+    
+    <script type="text/javascript" src="js/lightgl.js"></script>
+    <script type="text/javascript" src="js/csg.js"></script>
+    <script type="text/javascript" src="js/webscad.js"></script>
+    <script type="text/javascript" src="js/app.js"></script>
+    
+    <script language="javascript" type="text/javascript">
+    var editor = CodeMirror(document.getElementById("editor"), {
+      value: "module head() {\n" +
+             "  sphere(r=1);\n" +
+             "  translate([1,0,0]) sphere(r=0.2);\n" +
+             "}\n" +
+             "\n" +
+             "module eyes() {\n" +
+             "  translate([0.6, 0.4, 0.4]) sphere(r=0.2);\n" +
+             "  translate([0.6, 0.4,-0.4]) sphere(r=0.2);\n" +
+             "}\n" +
+             "\n" +
+             "\n" +
+             "difference() {\n" + 
+             "  head();\n" +
+             "  eyes();\n" +
+             "}\n",
+      mode:  "javascript"
+    });
+    
+    var scad = new webscad.Scad();
+    var renderArea = $("#render-area")
+    function render() {
+      var csg = scad.evalAst(editor.getValue());
+      var viewer = new Viewer(csg, renderArea.width() - 25, renderArea.height() - 25, 5); 
+
+      var el = document.getElementById("render-area");
+      el.innerHTML = "";
+      el.appendChild(viewer.gl.canvas);
+    };
+    
+    render();
+    </script>
+  </body>
+</html>
