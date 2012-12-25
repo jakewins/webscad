@@ -9,6 +9,11 @@ only part that is (other than bug hunting) complete. It is based on a port of th
 
 For an overview of what features are supported and which still remain to implement, see 'FEATURES'.
 
+Demo
+----
+
+http://jakewins.github.com/webscad/
+
 Building
 --------
 
