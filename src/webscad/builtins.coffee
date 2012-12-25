@@ -79,18 +79,10 @@ scaleModule = defineModule ['v'], (ctx, submodules) ->
 mirrorModule = defineModule ['v'], (ctx, submodules) ->
   [x,y,z] = ctx.getVar('v')
   
-  console.log x,y,z
-  
   for submodule in submodules
-    if x != 0 
-      submodule = submodule.mirroredX()
-      console.log "Mirror X", x.constructor.toString()
-    if y != 0 
-      submodule = submodule.mirroredY()
-      console.log "Mirror Y", y.constructor.toString()
-    if z != 0 
-      submodule = submodule.mirroredZ()
-      console.log "Mirror Z", z.constructor.toString()
+    if x != 0 then submodule = submodule.mirroredX()
+    if y != 0 then submodule = submodule.mirroredY()
+    if z != 0 then submodule = submodule.mirroredZ()
     submodule
     
 
