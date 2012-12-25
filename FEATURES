@@ -6,6 +6,7 @@ Implemented features from OpenSCAD:
       cube
       cylinder (only 'r' radius setting)
       sphere
+      polyhedron
 
     CSG ops:
       union
@@ -21,7 +22,6 @@ Features left to implement
       
   Primitives:
     cylinder  (r1/r2 radius)
-    polyhedron
     square
     circle
     polygon

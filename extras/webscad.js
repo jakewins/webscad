@@ -2125,7 +2125,7 @@ if (typeof module !== 'undefined' && require.main === module) {
     cube: cubeModule,
     cylinder: cylinderModule,
     sphere: sphereModule,
-    polyhedron: unimplementedModule('polyhedron'),
+    polyhedron: polyhedronModule,
     square: unimplementedModule('square'),
     circle: unimplementedModule('circle'),
     polygon: unimplementedModule('polygon'),
