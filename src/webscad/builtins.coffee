@@ -45,7 +45,7 @@ csgOperationModule = (csgName) ->
   
 unionModule      = csgOperationModule 'union'
 intersectModule  = csgOperationModule 'intersect'
-differenceModule = csgOperationModule 'union'
+differenceModule = csgOperationModule 'subtract'
     
 translateModule = defineModule ['v'], (ctx, submodules) ->
   vector = ctx.getVar('v')
@@ -65,7 +65,7 @@ exports.modules =
   
   # CSG operations
   union        : unionModule
-  difference   : unimplementedModule('difference')
+  difference   : differenceModule
   intersection : intersectModule
   render       : unimplementedModule('render')
   

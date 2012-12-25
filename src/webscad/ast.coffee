@@ -245,9 +245,9 @@ exports.VectorValue = class VectorValue extends BaseValue
 
   children: ['objects']
 
-  evaluate : ->
+  evaluate : (ctx)->
     for obj in @objects
-      obj.evaluate()
+      obj.evaluate(ctx)
 
 
 exports.RangeValue = class RangeValue extends BaseValue
@@ -345,13 +345,16 @@ exports.ModuleCall = class ModuleCall extends AstNode
     
     ctx = new Context(ctx)
   
-    childCalls = for child in @subModules
-      child.evaluate ctx
-    
     module = ctx.getModule(@name)
     @args.evaluate ctx, module.params
     
-    module(ctx, childCalls)
+    childCalls = for child in @subModules
+      child.evaluate ctx
+
+    # Children may be nested, make sure we pass on a flattened array
+    childCalls = [].concat childCalls...
+    
+    module ctx, childCalls
 
 #### MemberAccess
 
@@ -404,7 +407,7 @@ exports.Module = class Module extends AstNode
     body = @body
     func = (runtimeCtx, subModules) ->
       body.evaluate(runtimeCtx)
-    func.params = [param.name for param in @params]
+    func.params = (param.name for param in @params)
     ctx.addModule @name.name, func
 
 
@@ -437,17 +440,62 @@ exports.Code = class Code extends AstNode
 #### Arithmetics
 
 exports.Op = class Op extends AstNode
-  constructor: (op, first, second, flip ) ->
-    @operator = op
+  
+  @OPERATORS = 
+    '-' : 
+      applyTo            : (val1, val2) -> val1 - val2
+      applyToSingleValue : (val) -> -1 * val
+    
+    '+' : (val1, val2) -> val1 + val2
+    '*' : (val1, val2) -> val1 * val2
+    '/' : (val1, val2) -> val1 / val2
+    '%' : (val1, val2) -> val1 % val2
+    
+    # Comparison operators
+    
+    '>'  : (val1, val2) -> val1 > val2
+    '<'  : (val1, val2) -> val1 < val2
+    '<=' : (val1, val2) -> val1 <= val2
+    '>=' : (val1, val2) -> val1 >= val2
+    '==' : (val1, val2) -> val1 == val2
+    '!=' : (val1, val2) -> val1 != val2
+    
+    # Logic operators
+    
+    '||' : (val1, val2) -> val1 || val2
+    '&&' : (val1, val2) -> val1 && val2
+    '!' : 
+      applyTo            :  -> throw new Error("'!' cannot be applied to a two values, it needs a single value to work on.")
+      applyToSingleValue : (val) -> !!val
+    
+  
+  constructor: (op, first, second ) ->
+    if not (Op.OPERATORS[op]?)
+      throw new Error("Unknown operator: #{op}")
+    
+    operator = Op.OPERATORS[op]
+    
+    if operator.applyToSingleValue?
+      @_applyToSingleValue = operator.applyToSingleValue
+      @_applyTo            = operator.applyTo
+    else
+      @_applyToSingleValue = -> throw new Error("'#{op}' cannot be applied to a single value, it needs two values to work.")
+      @_applyTo            = operator
+      
     @first    = first
     @second   = second
-    @flip     = !!flip
     return this
 
   children: ['first', 'second']
 
   toString: (idt) ->
     super idt, @constructor.name + ' ' + @operator
+    
+  evaluate: (ctx) ->
+    if @second? 
+      @_applyTo @first.evaluate(ctx), @second.evaluate(ctx)
+    else
+      @_applyToSingleValue @first.evaluate(ctx)
 
 #### Use
 

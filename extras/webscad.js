@@ -2162,13 +2162,13 @@ be performed to yield a 3d model.
 
     VectorValue.prototype.children = ['objects'];
 
-    VectorValue.prototype.evaluate = function() {
+    VectorValue.prototype.evaluate = function(ctx) {
       var obj, _i, _len, _ref1, _results;
       _ref1 = this.objects;
       _results = [];
       for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
         obj = _ref1[_i];
-        _results.push(obj.evaluate());
+        _results.push(obj.evaluate(ctx));
       }
       return _results;
     };
@@ -2345,8 +2345,10 @@ be performed to yield a 3d model.
     };
 
     ModuleCall.prototype.evaluate = function(ctx) {
-      var child, childCalls, module;
+      var child, childCalls, module, _ref1;
       ctx = new Context(ctx);
+      module = ctx.getModule(this.name);
+      this.args.evaluate(ctx, module.params);
       childCalls = (function() {
         var _i, _len, _ref1, _results;
         _ref1 = this.subModules;
@@ -2357,8 +2359,7 @@ be performed to yield a 3d model.
         }
         return _results;
       }).call(this);
-      module = ctx.getModule(this.name);
-      this.args.evaluate(ctx, module.params);
+      childCalls = (_ref1 = []).concat.apply(_ref1, childCalls);
       return module(ctx, childCalls);
     };
 
@@ -2444,18 +2445,16 @@ be performed to yield a 3d model.
       func = function(runtimeCtx, subModules) {
         return body.evaluate(runtimeCtx);
       };
-      func.params = [
-        (function() {
-          var _i, _len, _ref1, _results;
-          _ref1 = this.params;
-          _results = [];
-          for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-            param = _ref1[_i];
-            _results.push(param.name);
-          }
-          return _results;
-        }).call(this)
-      ];
+      func.params = (function() {
+        var _i, _len, _ref1, _results;
+        _ref1 = this.params;
+        _results = [];
+        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+          param = _ref1[_i];
+          _results.push(param.name);
+        }
+        return _results;
+      }).call(this);
       return ctx.addModule(this.name.name, func);
     };
 
@@ -2510,11 +2509,78 @@ be performed to yield a 3d model.
 
     __extends(Op, _super);
 
-    function Op(op, first, second, flip) {
-      this.operator = op;
+    Op.OPERATORS = {
+      '-': {
+        applyTo: function(val1, val2) {
+          return val1 - val2;
+        },
+        applyToSingleValue: function(val) {
+          return -1 * val;
+        }
+      },
+      '+': function(val1, val2) {
+        return val1 + val2;
+      },
+      '*': function(val1, val2) {
+        return val1 * val2;
+      },
+      '/': function(val1, val2) {
+        return val1 / val2;
+      },
+      '%': function(val1, val2) {
+        return val1 % val2;
+      },
+      '>': function(val1, val2) {
+        return val1 > val2;
+      },
+      '<': function(val1, val2) {
+        return val1 < val2;
+      },
+      '<=': function(val1, val2) {
+        return val1 <= val2;
+      },
+      '>=': function(val1, val2) {
+        return val1 >= val2;
+      },
+      '==': function(val1, val2) {
+        return val1 === val2;
+      },
+      '!=': function(val1, val2) {
+        return val1 !== val2;
+      },
+      '||': function(val1, val2) {
+        return val1 || val2;
+      },
+      '&&': function(val1, val2) {
+        return val1 && val2;
+      },
+      '!': {
+        applyTo: function() {
+          throw new Error("'!' cannot be applied to a two values, it needs a single value to work on.");
+        },
+        applyToSingleValue: function(val) {
+          return !!val;
+        }
+      }
+    };
+
+    function Op(op, first, second) {
+      var operator;
+      if (!(Op.OPERATORS[op] != null)) {
+        throw new Error("Unknown operator: " + op);
+      }
+      operator = Op.OPERATORS[op];
+      if (operator.applyToSingleValue != null) {
+        this._applyToSingleValue = operator.applyToSingleValue;
+        this._applyTo = operator.applyTo;
+      } else {
+        this._applyToSingleValue = function() {
+          throw new Error("'" + op + "' cannot be applied to a single value, it needs two values to work.");
+        };
+        this._applyTo = operator;
+      }
       this.first = first;
       this.second = second;
-      this.flip = !!flip;
       return this;
     }
 
@@ -2522,6 +2588,14 @@ be performed to yield a 3d model.
 
     Op.prototype.toString = function(idt) {
       return Op.__super__.toString.call(this, idt, this.constructor.name + ' ' + this.operator);
+    };
+
+    Op.prototype.evaluate = function(ctx) {
+      if (this.second != null) {
+        return this._applyTo(this.first.evaluate(ctx), this.second.evaluate(ctx));
+      } else {
+        return this._applyToSingleValue(this.first.evaluate(ctx));
+      }
     };
 
     return Op;
@@ -2716,7 +2790,7 @@ be performed to yield a 3d model.
 
   intersectModule = csgOperationModule('intersect');
 
-  differenceModule = csgOperationModule('union');
+  differenceModule = csgOperationModule('subtract');
 
   translateModule = defineModule(['v'], function(ctx, submodules) {
     var submodule, vector, _i, _len, _results;
@@ -2738,7 +2812,7 @@ be performed to yield a 3d model.
     circle: unimplementedModule('circle'),
     polygon: unimplementedModule('polygon'),
     union: unionModule,
-    difference: unimplementedModule('difference'),
+    difference: differenceModule,
     intersection: intersectModule,
     render: unimplementedModule('render'),
     translate: translateModule
