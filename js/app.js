@@ -78,7 +78,7 @@ CSG.prototype.toMesh = function() {
 };
 
 var angleX = 20;
-var angleY = 20;
+var angleY = -50;
 var viewers = [];
 
 // Set to true so lines don't use the depth buffer

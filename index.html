@@ -214,7 +214,7 @@
       try {
         errorBox.hide();
         var csg = scad.evalAst(editor.getValue());
-        var viewer = new Viewer(csg, renderArea.width() - 25, renderArea.height() - 25, 50); 
+        var viewer = new Viewer(csg, renderArea.width() - 25, renderArea.height() - 25, 5); 
 
         var el = document.getElementById("render-area");
         el.innerHTML = "";
