@@ -211,8 +211,7 @@ exports.Identifier = class Identifier extends AstNode
 exports.BaseValue = class BaseValue extends AstNode
   constructor: (@value) ->
   
-  evaluate: (ctx) ->
-    @value
+  evaluate: (ctx) -> @value
 
 exports.UndefinedValue = class UndefinedValue extends BaseValue
 
@@ -220,6 +219,8 @@ exports.NumberValue = class NumberValue extends BaseValue
 
   toString: (idt = '', name = @constructor.name) ->
     super(idt,name) + ' ' + @value + ''
+  
+  evaluate: (ctx) -> parseFloat @value
     
 exports.StringValue = class StringValue extends BaseValue
 
@@ -233,6 +234,8 @@ exports.BooleanValue = class BooleanValue extends BaseValue
 
   constructor: (value) ->
     @value = value is true or value is 'true'
+  
+  evaluate: (ctx) -> !!@value
 
   toString: (idt = '', name = @constructor.name) ->
     val = if (@value is true) then 'true' else 'false'
@@ -246,8 +249,7 @@ exports.VectorValue = class VectorValue extends BaseValue
   children: ['objects']
 
   evaluate : (ctx)->
-    for obj in @objects
-      obj.evaluate(ctx)
+    obj.evaluate(ctx) for obj in @objects 
 
 
 exports.RangeValue = class RangeValue extends BaseValue

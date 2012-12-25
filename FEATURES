@@ -11,9 +11,10 @@ Implemented features from OpenSCAD:
       union
       difference
       intersection
-
-    Transform ops:
 	    translate
+      scale
+      rotate
+      mirror
 
 
 Features left to implement
@@ -25,16 +26,11 @@ Features left to implement
     circle
     polygon
     
-  Transform ops:
-    scale
-    rotate
-    mirror
+  CSG ops:
     multmatrix
     color
     minkovski
     hull
-
-  CSG ops:
     render // Should not be needed
       
   FUNCTIONS:

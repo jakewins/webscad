@@ -37,7 +37,7 @@ cylinderModule = defineModule ['h', 'r1', 'r2', 'r'], (ctx, submodules) ->
 
 
 #
-# Mutating operations
+# CSG operations
 #
 
 
@@ -56,17 +56,14 @@ differenceModule = csgOperationModule 'subtract'
 
 rotateModule = defineModule ['a', 'v'], (ctx, submodules) ->
   angle   = ctx.getVar('a')
-  vectors = ctx.getVar('v')
+  [x,y,z] = ctx.getVar('v') or [0,0,1]
   
-  if not (vectors?) or vectors.length != 3
-    throw new Error("You need to provide a three-value vector to rotate. Got '#{vectors}'.")
-  
-  if angle? then vectors = [vectors[0] * angle, vectors[1] * angle, vectors[2] * angle]
+  if angle? then [x,y,z] = [x * angle, y * angle, z * angle]
   
   for submodule in submodules
-    if vectors[0] != 0 then submodule = submodule.rotateX vectors[0]
-    if vectors[1] != 0 then submodule = submodule.rotateY vectors[1]
-    if vectors[2] != 0 then submodule = submodule.rotateZ vectors[2]
+    if x != 0 then submodule = submodule.rotateX x
+    if y != 0 then submodule = submodule.rotateY y
+    if z != 0 then submodule = submodule.rotateZ z
     submodule
     
 translateModule = defineModule ['v'], (ctx, submodules) ->
@@ -74,6 +71,29 @@ translateModule = defineModule ['v'], (ctx, submodules) ->
   for submodule in submodules
     submodule.translate(vector)
   
+scaleModule = defineModule ['v'], (ctx, submodules) ->
+  vector = ctx.getVar('v')
+  for submodule in submodules
+    submodule.scale(vector)
+    
+mirrorModule = defineModule ['v'], (ctx, submodules) ->
+  [x,y,z] = ctx.getVar('v')
+  
+  console.log x,y,z
+  
+  for submodule in submodules
+    if x != 0 
+      submodule = submodule.mirroredX()
+      console.log "Mirror X", x.constructor.toString()
+    if y != 0 
+      submodule = submodule.mirroredY()
+      console.log "Mirror Y", y.constructor.toString()
+    if z != 0 
+      submodule = submodule.mirroredZ()
+      console.log "Mirror Z", z.constructor.toString()
+    submodule
+    
+
 
 exports.modules = 
   # Primitives
@@ -93,5 +113,7 @@ exports.modules =
   
   translate    : translateModule
   rotate       : rotateModule
+  scale        : scaleModule
+  mirror       : mirrorModule
   
 exports.functions = {}
