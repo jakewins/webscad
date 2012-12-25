@@ -1,0 +1,88 @@
+Implemented features from OpenSCAD:
+
+    User defined modules
+
+    Primitives:
+      cube
+      cylinder (only 'r' radius setting)
+      sphere
+
+    CSG ops:
+      union
+      difference
+      intersection
+
+    Transform ops:
+	    translate
+
+
+Features left to implement
+      
+  Primitives:
+    cylinder  (r1/r2 radius)
+    polyhedron
+    square
+    circle
+    polygon
+    
+  Transform ops:
+    scale
+    rotate
+    mirror
+    multmatrix
+    color
+    minkovski
+    hull
+
+  CSG ops:
+    render // Should not be needed
+      
+  FUNCTIONS:
+    abs
+    sign
+	  rands
+	  min
+	  max
+	  sin
+	  cos
+	  asin
+	  acos
+	  tan
+	  atan
+	  atan2
+	  round
+	  ceil
+	  floor
+	  pow
+	  sqrt
+	  exp
+	  log
+	  ln
+	  str
+	  lookup
+	  
+  Control:
+    child
+    echo
+    assign
+    for
+    intersection_for
+    if // This is not a module
+	  
+  Other:
+    group
+    surface
+    projection
+    import_dxf
+    import_stl
+    import_off
+    dxf_linear_extrude
+    linear_extrude (same as above)
+    dxf_rotate_extrude
+    rotate_extrude (same as above)
+    dxf_dim
+    dxf_cross
+  
+  Advanced:
+    glide
+    subdiv

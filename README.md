@@ -1,51 +1,26 @@
-
 WebSCAD
 -------
 
-An implementation of SCAD for in-browser use. 
+An implementation of SCAD for Javascript. It uses Jison for parsing, Coffeescripts DSL for Jison Grammars, and csg.js for the 
+actual 3d manipulation.
 
-The parser and the build tooling is based on the
-coffeescript project. 
+This is still a work in progress, and there is many features that are missing from the original OpenSCAD. The parser is the
+only part that is (other than bug hunting) complete. It is based on a port of the OpenSCAD grammar.
 
-This is still incomplete, the SCAD -> AST parsing
-is done, and the infrastructure for the CSG tree.
+For an overview of what features are supported and which still remain to implement, see 'FEATURES'.
 
-Usage
------
+Building
+--------
 
     npm install
-    cake test
+    cake build:full && cake build:browser
+   
+Contributing
+------------
 
-Architecture overview:
-----------------------
+Contributions are super welcome - please make sure what you contribute is unit tested!
 
- - Lexing
-   
-   Reads raw text, outputs a list
-   of tokens.
+License
+-------
 
- - Parsing
-   
-   Based on the CoffeeScript parser,
-   parses the list of tokens, resolves imports,
-   and yields an abstract syntax tree.
-   
- - Evaluation
- 
-   All AST nodes has an evaluate() method.
-   All expressions are evaluated, all
-   user-defined modules are executed.
-   
-   Yields a CSG Tree, consisting of
-   CSG operations and primitives.
-   
- - CSG execution
- 
-   The CSG tree is executed, yielding a
-   single 3d object.
-   
- - Rendering
-   
-   The resulting 3d object is rendered in
-   some way.
-   
+All code, unless otherwise stated, is copyright Jacob Hansson 2013, and licensed under the MIT public license.
