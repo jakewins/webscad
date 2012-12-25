@@ -66,7 +66,7 @@ task 'build:parser', 'rebuild the Jison parser (run build first)', ->
 task 'build:browser', 'rebuild the merged script for inclusion in the browser', ->
   code = ''
 
-  for name in ['helpers', 'lexer', 'parser','tree','geometry','csg','ast','builtins','scad']
+  for name in ['helpers', 'lexer', 'parser','tree','ast','builtins','scad']
     code += """
       require['./#{name}'] = new function() {
         var exports = this;
