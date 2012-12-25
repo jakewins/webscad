@@ -69,7 +69,7 @@ exports.Scad = class Scad
   Evalutate an abstract syntax tree, yielding
   a CSG tree.
   ###
-  evalAst : (ast) ->
+  evaluate : (ast) ->
     
     if typeof ast is 'string' or ast not instanceof astNodes.AstNode
       ast = @parse ast

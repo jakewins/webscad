@@ -19,6 +19,13 @@ Building
 
     npm install
     cake build:full && cake build:browser
+    
+Compiled files will be under lib/, and an aggregated version for browser use will be found under extras/webscad.js.
+    
+Usage
+-----
+
+WebSCAD is built to be used as a library. For a quick primer on the API, see [here](https://github.com/jakewins/webscad/blob/master/test/api.coffee).
 
 Similar projects
 ----------------

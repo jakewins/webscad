@@ -2158,7 +2158,7 @@ if (typeof module !== 'undefined' && require.main === module) {
     */
 
 
-    Scad.prototype.evalAst = function(ast) {
+    Scad.prototype.evaluate = function(ast) {
       var ctx;
       if (typeof ast === 'string' || !(ast instanceof astNodes.AstNode)) {
         ast = this.parse(ast);

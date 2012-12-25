@@ -5,7 +5,7 @@ scad = new Scad
 
 exports.producesCsg = (expectedCSG) ->
   verify = (text) ->
-    csg = scad.evalAst text
+    csg = scad.evaluate text
     eq csg.toString(), expectedCSG.toString()
     
 
