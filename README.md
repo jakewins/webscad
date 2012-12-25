@@ -19,11 +19,6 @@ Building
 
     npm install
     cake build:full && cake build:browser
-   
-Contributing
-------------
-
-Contributions are super welcome - please make sure what you contribute is unit tested!
 
 Similar projects
 ----------------
@@ -33,6 +28,13 @@ There are several projects aimed at bringing 3D editing to the web. Here are som
  * [OpenSCAD-JS](https://github.com/EiNSTeiN-/openscad-js) - A sister implementation of OpenSCAD for the browser
  * [OpenJsCad](https://github.com/joostn/OpenJsCad) - An alternative to OpenSCAD, using Javascript as its syntax
  * [CoffeeSCAD](https://github.com/kaosat-dev/CoffeeSCad) - An alternative to OpenSCAD, using Coffeescript as its syntax
+
+ 
+Contributing
+------------
+
+Contributions are super welcome - please make sure what you contribute is unit tested! Check out the FEATURES file in
+the root of the repo for a list of yet-to-be-implemented OpenSCAD features.
 
 License
 -------
