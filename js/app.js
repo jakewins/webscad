@@ -147,8 +147,8 @@ function Viewer(csg, width, height, depth) {
 
   gl.onmousemove = function(e) {
     if (e.dragging) {
-      angleY += e.deltaX * 2;
-      angleX += e.deltaY * 2;
+      angleY += e.deltaX * Math.min(1.6, Math.pow(depth, depth) * 0.1 + 0.00001);
+      angleX += e.deltaY * Math.min(1.6, Math.pow(depth, depth) * 0.1 + 0.00001);
       angleX = Math.max(-90, Math.min(90, angleX));
 
       viewers.map(function(viewer) {
@@ -157,8 +157,10 @@ function Viewer(csg, width, height, depth) {
     }
   };
   
+  var scroll = Math.pow(depth/0.005, 1/2);
   onMouseWheel(gl.canvas, function(event) {
-      depth += event.detail;
+      scroll += event.detail;
+      depth = Math.pow(scroll, 2) * 0.005;
       
       viewers.map(function(viewer) {
         viewer.gl.ondraw();
@@ -167,7 +169,7 @@ function Viewer(csg, width, height, depth) {
       event.stopPropagation();
       
       return false;
-  }, false);
+  });
 
   var that = this;
   gl.ondraw = function() {

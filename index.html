@@ -213,7 +213,7 @@
     function render() {
       try {
         errorBox.hide();
-        var csg = scad.evalAst(editor.getValue());
+        var csg = scad.evaluate(editor.getValue());
         var viewer = new Viewer(csg, renderArea.width() - 25, renderArea.height() - 25, 5); 
 
         var el = document.getElementById("render-area");
