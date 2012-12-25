@@ -9,7 +9,7 @@ defineModule = (params, func) ->
   func
 
 unimplementedModule = (name) ->
-  defineModule [], () -> throw "'#{@name}' is not implemented."
+  defineModule [], () -> throw "module '#{name}' is not implemented."
 
 #
 # Primitive Objects
@@ -34,6 +34,17 @@ cylinderModule = defineModule ['h', 'r1', 'r2', 'r'], (ctx, submodules) ->
   height = ctx.getVar('h')
   
   csg.cylinder({ radius : radius, center : [0,0,0]})
+  
+polyhedronModule = defineModule ['points', 'triangles'], (ctx, submodules) ->
+  points    = ctx.getVar('points')
+  triangles = ctx.getVar('triangles')
+
+  polygons = for triangle in triangles
+    vertexes = for pointId in triangle
+      [x,y,z] = points[pointId]
+      new CSG.Vertex(new CSG.Vector3D(x, y, z))
+    new CSG.Polygon(vertexes)
+  csg.fromPolygons(polygons)
 
 
 #

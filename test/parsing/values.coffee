@@ -36,6 +36,15 @@ test 'parses vector values', ->
       new StringValue "astring"
     ]]
     
+test 'parses vector with line breaks', ->
+
+  assertParsingExpression '[1,\n2\n,3\n]', produces [
+    new VectorValue([
+      new NumberValue(1)
+      new NumberValue(2)
+      new NumberValue(3)
+    ])]
+    
 test 'parses matrix values', ->
 
   assertParsingExpression '''

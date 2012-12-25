@@ -49,7 +49,7 @@ task 'build', 'build WebSCAD from source', ->
 
 
 task 'build:full', 'rebuild the source twice, and run the tests', ->
-  exec 'cake build && cake build && cake test', (err, stdout, stderr) ->
+  exec 'cake build && cake build:parser && cake test', (err, stdout, stderr) ->
     console.log stdout.trim() if stdout
     console.log stderr.trim() if stderr
     throw err    if err

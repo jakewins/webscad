@@ -22,12 +22,14 @@ exports.assertParsing = assertParsing = (text, verify) ->
   try
     verify scad.parse(text)
   catch e
-    console.log "Parse error, tokens were:"
+    console.log "Parse error: '#{e}', tokens were:"
     console.log lexer.tokenize text
+    console.log "Raw text was: "
+    console.log text
     throw e
     
 # Shorthand for testing expressions
 exports.assertParsingExpression = (expression, verify) ->
-  assertParsing "a=#{expression}", (ast) ->
+  assertParsing "a=#{expression};", (ast) ->
     # Get rid of the assignment
     verify new Block([ast.statements[0].value])

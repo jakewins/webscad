@@ -85,7 +85,7 @@ test 'parses multi child module call', ->
 mymodule(12){
   otherModule();
   thirdModule();
-};''', produces [
+}''', produces [
     new ModuleCall(
       new Identifier('mymodule'),
       new Arguments([new NumberValue(12)]),
@@ -161,3 +161,25 @@ test 'parses disable modifier', ->
       new Arguments([]),[],
       {isIgnored:true})
   ]
+  
+test 'parses module call with linebreak in args', ->
+    assertParsing '''
+    polyhedron(
+      points=10, 
+      triangles=[ [0,2],
+                  [1]]
+    );
+  ''', produces [
+      new ModuleCall(
+        new Identifier('polyhedron'),
+        new Arguments([
+          new Assign(new Identifier('points'), new NumberValue(10)),
+          new Assign(new Identifier('triangles'), 
+            new VectorValue([
+              new VectorValue([new NumberValue(0), new NumberValue(2)])
+              new VectorValue([new NumberValue(1)])
+            ])
+          )
+        ]),[],
+        {})
+    ]

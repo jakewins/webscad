@@ -131,10 +131,8 @@ exports.Lexer = class Lexer
     if block
       @token 'COMMENT', @sanitizeBlockComment block,
         blockcomment: true, indent: Array(@indent + 1).join(' ')
-      @token 'TERMINATOR', '\n'
     else
       @token 'COMMENT', comment.trim()[2..].trim()
-      @token 'TERMINATOR', '\n'
     @line += count comment, '\n'
     comment.length
 
@@ -151,8 +149,7 @@ exports.Lexer = class Lexer
   # Generate a newline token. Consecutive newlines get merged together.
   terminatorToken: ->
     if @tag() isnt 'TERMINATOR' and @tokens.length > 0
-      @token 'TERMINATOR', '\n'
-    @line += 1
+      @token 'TERMINATOR', ';'
     this
 
   # We treat all other single characters as a token. E.g.: `( ) , . !`
@@ -170,8 +167,11 @@ exports.Lexer = class Lexer
     if value is '=' and prev
       @assignmentError() if not prev[1].reserved and prev[1] in KEYWORDS
         
-    if value in [';','\n']
+    if value is ';'
       @terminatorToken()
+      return 1
+    else if value is '\n'
+      @line += 1
       return 1
     else if value in COMPARE         then tag = 'COMPARE'
     else if value in LOGIC           then tag = 'LOGIC'

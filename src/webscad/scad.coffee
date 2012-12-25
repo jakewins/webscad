@@ -44,7 +44,11 @@ exports.Scad = class Scad
   ###
   load : (path, cb) ->
     @fileLoader path, (text) =>
-      ast = @parse text
+      try
+        ast = @parse text 
+      catch e
+        if e.message? then throw new Error("In '#{path}': #{e.message}")
+        elsethrow new Error("In '#{path}': #{e}")
       calls = 1
       ast.replaceIncludes (path, replaceCb) =>
         calls++
@@ -59,7 +63,7 @@ exports.Scad = class Scad
   Parse a string of SCAD code or an array of lexed tokens, and
   return the AST. 
   ###
-  parse : (source, options) ->
+  parse : (source, options={}) ->
     if typeof source is 'string'
       parser.parse lexer.tokenize source, options
     else

@@ -11,7 +11,7 @@ test "show how to evaluate SCAD code", ->
   scad = new Scad
   
   # Run some SCAD code
-  csgObject = scad.evaluate("cube(10)")
+  csgObject = scad.evaluate("cube(10);")
   
   # Now we have a csg object, which we can use to do lots
   # of cool things (like rendering in the browser, or dumping as an .STL)
@@ -29,4 +29,4 @@ test "show how to define how imports should be loaded", ->
   scad.setFileLoader (path, callback) ->
     # A function that loads files, and gives them as text
     # to the callback method when they are loaded.
-    callback "cube(10)"
+    callback "cube(10);"

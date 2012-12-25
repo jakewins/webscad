@@ -9,12 +9,10 @@ scad = new Scad
 test 'picks up correct line number of syntax error', -> 
 
   try
-    scad.parse '''
-if( a == 12 ) {
-
+    scad.parse '''if( a == 12 ) {
   asd
 }
 '''
     eq true, false
   catch e
-    eq e.message, "Parse error on line 3: Unexpected 'TERMINATOR'"
+    eq e.message, "Parse error on line 2: Unexpected '}'"

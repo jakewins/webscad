@@ -73,15 +73,14 @@ grammar =
   # Any list of statements and expressions, separated by line breaks or semicolons.
   Body: [
     o 'Statement',                                   -> Block.wrap [$1]
-    o 'Body TERMINATOR Statement',                   -> $1.push $3
-    o 'Body TERMINATOR'
+    o 'Body Statement',                              -> $1.push $2
   ]
 
   # Statements
   Statement: [
     o 'Module'
-    o 'ModuleCall'
-    o 'Assign'
+    o 'ModuleCallStatement'
+    o 'AssignStatement'
     o 'Code'
     o 'If'
     o 'Comment'
@@ -101,9 +100,14 @@ grammar =
     o 'IDENTIFIER',                             -> new Identifier $1
   ]
 
+  # Assignment of a named argument
+  AssignArg: [
+    o 'Identifier = Expression',                -> new Assign $1, $3
+  ]
+
   # Assignment of a variable, property, or index to a value.
-  Assign: [
-    o 'Assignable = Expression',                -> new Assign $1, $3
+  AssignStatement: [
+    o 'Assignable = Expression TERMINATOR',     -> new Assign $1, $3
   ]
 
   # A comment.
@@ -112,7 +116,7 @@ grammar =
   ]
 
   Code: [
-    o 'FUNCTION Identifier PARAM_START ParamList PARAM_END = Expression', -> new Code $2, $4, $7
+    o 'FUNCTION Identifier PARAM_START ParamList PARAM_END = Expression TERMINATOR', -> new Code $2, $4, $7
   ]
 
   # An optional, trailing comma.
@@ -159,12 +163,12 @@ grammar =
   ]
   
   MemberAccess: [
-    o '.  Identifier',                          -> $2
+    o '. Identifier',                           -> $2
   ]
 
   Include: [
-    o 'INCLUDE',                                -> new Include $1
-    o 'USE',                                    -> new Use $1
+    o 'INCLUDE TERMINATOR',                                -> new Include $1
+    o 'USE TERMINATOR',                                    -> new Use $1
   ]
 
   Module: [
@@ -172,18 +176,22 @@ grammar =
       new Module $2, $4, $6
   ]
 
+  ModuleCallStatement: [
+    o 'ModuleCall'
+    o '! ModuleCall', -> $2.setIsRoot(true)
+    o '# ModuleCall', -> $2.setIsHighlighted(true)
+    o '% ModuleCall', -> $2.setIsInBackground(true)
+    o '* ModuleCall', -> $2.setIsIgnored(true)
+  ]
+
   # Module invocation
   ModuleCall: [
-    o 'Identifier Arguments',                        -> new ModuleCall $1, $2
-    o '! ModuleCall', ->
-      $2.setIsRoot(true)
-    o '# ModuleCall', ->
-      $2.setIsHighlighted(true)
-    o '% ModuleCall', ->
-      $2.setIsInBackground(true)
-    o '* ModuleCall', ->
-      $2.setIsIgnored(true)
+    o 'Identifier Arguments TERMINATOR',                        -> new ModuleCall $1, $2
     o 'Identifier Arguments ModuleCalls',            -> new ModuleCall $1, $2, $3
+  ]
+  
+  SingleModuleCall: [
+    o 'Identifier Arguments',                        -> new ModuleCall $1, $2
   ]
   
   # Child module invocations, this is the "block statement"
@@ -195,10 +203,8 @@ grammar =
 
   ModuleCallList: [
     o '',                                       -> []
-    o 'ModuleCall',                       -> [$1]
-    o 'ModuleCallList TERMINATOR ModuleCall', ->
-      $1.concat $3
-    o 'ModuleCallList TERMINATOR', -> $1
+    o 'ModuleCallList ModuleCallStatement', ->
+      $1.concat $2
   ]
 
   # Function invocation
@@ -231,14 +237,13 @@ grammar =
   # (i.e. comma-separated expressions). Newlines work as well.
   ArgList: [
     o 'Arg',                                    -> [$1]
-    o 'ArgList , Arg',                          -> $1.concat $3
-    o 'ArgList OptComma TERMINATOR Arg',        -> $1.concat $4
+    o 'ArgList , OptComma Arg',                 -> $1.concat $4
   ]
 
   # Valid arguments are Expressions
   Arg: [
     o 'Expression'
-    o 'Assign'
+    o 'AssignArg'
   ]
   
   # Conditional expressions
