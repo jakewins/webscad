@@ -85,7 +85,7 @@
       border-left: 1px solid #ddd;
     }
     
-    /* SIDEBAR
+    /* SIDEBAR/EDITOR
     ----------------- */
     
     #sidebar {
@@ -103,6 +103,10 @@
       padding: 5px;
       border-radius:4px;
       margin: 0 0 10px;
+    }
+    
+    #errors {
+      color: #EE0000;
     }
     
     footer {
@@ -156,6 +160,7 @@
       
       <div class="row">
         <h3>Try WebSCAD!</h3>
+        <div class="alert alert-error" id="errors"></div>
         <div id="editor"></div>
         <p><a class="btn btn-primary pull-right" onclick='render();'>Render »</a></p>
       </div><!-- /.row -->
@@ -203,14 +208,21 @@
     });
     
     var scad = new webscad.Scad();
-    var renderArea = $("#render-area")
+    var renderArea = $("#render-area"),
+        errorBox = $("#errors");
     function render() {
-      var csg = scad.evalAst(editor.getValue());
-      var viewer = new Viewer(csg, renderArea.width() - 25, renderArea.height() - 25, 5); 
+      try {
+        errorBox.hide();
+        var csg = scad.evalAst(editor.getValue());
+        var viewer = new Viewer(csg, renderArea.width() - 25, renderArea.height() - 25, 5); 
 
-      var el = document.getElementById("render-area");
-      el.innerHTML = "";
-      el.appendChild(viewer.gl.canvas);
+        var el = document.getElementById("render-area");
+        el.innerHTML = "";
+        el.appendChild(viewer.gl.canvas);
+      } catch(e) {
+        errorBox.html(e + "");
+        errorBox.show();
+      }
     };
     
     render();
